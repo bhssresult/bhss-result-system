@@ -6,6 +6,10 @@
      - Small overrides for nav active state
    ============================================================ */
 
+body {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+}
+
 #loading-overlay {
   display: none;
 }
@@ -21,8 +25,61 @@
 }
 
 .nav-link.active {
-  background-color: #1e40af;
+  background-color: #3730a3;
 }
+
+/* ============================================================
+   HS MARKS ENTRY PAGE
+   Indigo/violet theme ported from the standalone HS-Marks-Entry
+   app. The bare `select` rule is scoped to this page so the
+   admin selects keep their default styling.
+   ============================================================ */
+.hs-serif { font-family: 'DM Serif Display', serif; }
+
+.card-glow {
+  box-shadow: 0 0 0 1px rgba(99,102,241,0.15), 0 8px 32px rgba(99,102,241,0.10), 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.bg-mesh {
+  background-color: #f5f3ff;
+  background-image:
+    radial-gradient(at 20% 20%, rgba(139,92,246,0.12) 0px, transparent 55%),
+    radial-gradient(at 80% 80%, rgba(99,102,241,0.10) 0px, transparent 55%),
+    radial-gradient(at 50% 10%, rgba(167,139,250,0.08) 0px, transparent 50%);
+}
+
+#page-hs-marks-entry select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 1.25rem;
+}
+#page-hs-marks-entry select:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-submit {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  transition: all 0.2s ease;
+}
+.btn-submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(99,102,241,0.35);
+}
+.btn-submit:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
+.btn-submit:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.step-dot {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #ede9fe; color: #6366f1;
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background 0.2s, color 0.2s;
+}
+.step-dot.active { background: #6366f1; color: #fff; }
+.step-dot.done   { background: #a5b4fc; color: #fff; }
+.step-line { height: 1px; width: 24px; background: #e0e7ff; flex-shrink: 0; }
 
 .result-card {
   page-break-inside: avoid;

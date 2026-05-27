@@ -4,6 +4,7 @@
  * Routes:
  *   #/home
  *   #/admin
+ *   #/hs-marks-entry
  *   #/hs-entry-review
  *   #/hs-results-preview
  *   #/hss-results
@@ -17,6 +18,7 @@ const Router = (() => {
   const routes = {
     'home':               { section: 'page-home',                roles: null },
     'admin':              { section: 'page-admin',               roles: ['admin'] },
+    'hs-marks-entry':     { section: 'page-hs-marks-entry',      roles: ['admin', 'teacher'] },
     'hs-entry-review':    { section: 'page-hs-entry-review',     roles: ['admin', 'teacher'] },
     'hs-results-preview': { section: 'page-hs-results-preview',  roles: ['admin', 'teacher'] },
     'hss-results':        { section: 'page-hss-results',         roles: ['admin', 'teacher'] },
@@ -53,6 +55,7 @@ const Router = (() => {
     const map = {
       'home': 'home',
       'admin': 'admin',
+      'hs-marks-entry': 'hs-results',
       'hs-entry-review': 'hs-results',
       'hs-results-preview': 'hs-results',
       'hss-results': 'hss-results',
@@ -117,6 +120,9 @@ const Router = (() => {
           break;
         case 'admin':
           await Pages.renderAdmin();
+          break;
+        case 'hs-marks-entry':
+          await HsMarksEntry.activate();
           break;
         case 'hss-results':
           await Pages.renderSchoolResults('hss');

@@ -57,6 +57,7 @@ const Api = (() => {
     post('saveMarks', { school, classType, marks, token });
   const getExamConfig = (token) => get('getExamConfig', { token });
   const getFormLinks = (token) => get('getFormLinks', { token });
+  const getHsLinks = (token) => get('getHsLinks', { token });
 
   // ---- Admin only ----
   const getUsers = (token) => get('getUsers', { token });
@@ -75,6 +76,7 @@ const Api = (() => {
     saveMarks,
     getExamConfig,
     getFormLinks,
+    getHsLinks,
     getUsers,
     addUser,
     updateUserRole,

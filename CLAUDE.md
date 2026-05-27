@@ -83,9 +83,23 @@ Toggle logic in `js/app.js#initDropdowns`:
 HS and HSS are intentionally **not symmetric** right now:
 
 - **HSS Results** is a simple nav link → class-selector page → 3 per-class buttons (Marks Entry external link, Marks Entry Review, Result Preview). Uses `Pages.renderSchoolResults('hss')`, `renderMarksReview('hss', class)`, `renderResultPreview('hss', class)`. Form URLs come from the `Links` sheet.
-- **HS Results** is a nested dropdown nav → 2 static placeholder pages (`#/hs-entry-review`, `#/hs-results-preview`). HS Marks Entry URL is **hardcoded** in `index.html` as `https://bhssresult.github.io/HS-Marks-Entry/` (a separate GitHub Pages app), not pulled from the `Links` sheet.
+- **HS Results** is a nested dropdown nav. **Marks Entry** is now an in-app page (`#/hs-marks-entry`, section `#page-hs-marks-entry`) — a 3-step wizard (Term → Teacher → Class & Section) that opens the matching Google Sheet in a new tab. **Entry Review** (`#/hs-entry-review`) and **Results Preview** (`#/hs-results-preview`) remain static placeholder pages.
 
 `Pages.renderSchoolResults`, `renderMarksReview`, `renderResultPreview` are kept because HSS still uses them. Do not delete them when working on HS unless HSS is migrated too.
+
+#### HS Marks Entry module (`js/hs-marks-entry.js`)
+
+A self-contained IIFE module (`HsMarksEntry`), originally ported from the standalone [HS-Marks-Entry](https://github.com/bhssresult/HS-Marks-Entry) app:
+
+- The Term / Teacher / Class-Section **options are fixed** in `index.html`. The destination **URLs are data**, kept in the `HS_Links` sheet (`term | name | class_section | url`) and fetched at runtime via `Api.getHsLinks()` → `getHsLinks` GAS endpoint. `URL_MAP` is built from the response and keyed `"term|name|class_section"`. To change/add links, edit the sheet — no code edits or redeploy. (`HS_Links-seed.tsv` in the repo root holds all 480 term/teacher/class combinations for the initial paste-in — First Mid Term has real URLs, the other five terms have blank `url` cells to fill in later. It can be deleted after import.)
+- `HsMarksEntry.init()` (called once from `app.js`) attaches the dropdown/button listeners. `HsMarksEntry.activate()` (called by `router.js` on each navigation to the page) resets the wizard to step 1 and loads the links once per session (subsequent visits reuse the cached map; a full page reload re-fetches).
+- Element IDs are prefixed `hs-` (`hs-dd-term`, `hs-dd-name`, `hs-dd-classsection`, `hs-dot1..3`, `hs-btn-go`, `hs-url-preview`, `hs-error-msg`). The "Go to Entry Sheet" button navigates in the same tab (`window.location.href = url`). Combinations with no matching `HS_Links` row show a "not configured yet" message.
+- The card logo is `assets/logo.png` (the school crest).
+- The script tag loads after `pages.js` and before `router.js`.
+
+### Theme
+
+The app uses an **indigo/violet** palette (matching the HS Marks Entry portal). The Tailwind `brand.*` scale is redefined in `index.html`'s `tailwind.config` to indigo shades, so all existing `brand-*` classes re-theme automatically. Fonts are **DM Sans** (body, set on `body` in `style.css`) and **DM Serif Display** (headings via the `.hs-serif` class), loaded from Google Fonts in `index.html`. The HS Marks Entry page's component styles (`.bg-mesh`, `.card-glow`, `.btn-submit`, `.step-dot`, `.step-line`, and the scoped `#page-hs-marks-entry select` arrow) live in `style.css`.
 
 ### GAS API Convention
 
@@ -95,7 +109,9 @@ HS and HSS are intentionally **not symmetric** right now:
 
 ### Google Sheets Schema
 
-Seven sheets: `Users`, `HS_Students`, `HSS_Students`, `HS_Marks`, `HSS_Marks`, `ExamConfig`, `Links`.
+Eight sheets: `Users`, `HS_Students`, `HSS_Students`, `HS_Marks`, `HSS_Marks`, `ExamConfig`, `Links`, `HS_Links`.
+
+`HS_Links` (columns: `term`, `name`, `class_section`, `url`) holds the HS Marks Entry destination URLs. `term`/`name`/`class_section` must match the `<option value>`s in the HS Marks Entry `<select>`s in `index.html` (e.g. `firstterm`, `madampuii`, `IX-A`). Read by `handleGetHsLinks` and exposed as a `"term|name|class_section" → url` map.
 
 `ExamConfig` is a key-value store (columns: `key`, `value`, `updated_date`). Subject lists, max marks, and pass marks are stored as comma-separated strings and parsed with `Utils.csvToArray()` / `Utils.csvToNumbers()`.
 

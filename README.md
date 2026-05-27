@@ -46,7 +46,7 @@ Total: about 30 minutes for the first time. Updates after that take less than a 
 
 1. Open <https://sheets.google.com> with your school Google account
 2. Create a blank sheet → rename it: **"BHSS Result System Database"**
-3. Create these **7 tabs** at the bottom (right-click the tab → Rename):
+3. Create these **8 tabs** at the bottom (right-click the tab → Rename):
    - `Users`
    - `HS_Students`
    - `HSS_Students`
@@ -54,6 +54,7 @@ Total: about 30 minutes for the first time. Updates after that take less than a 
    - `HSS_Marks`
    - `ExamConfig`
    - `Links`
+   - `HS_Links`
 
 4. Add the **header row** for each tab (first row, exactly as written):
 
@@ -109,6 +110,12 @@ Then fill in these starter rows (column A and B):
 ```
 school | class | form_url | updated_date
 ```
+
+**`HS_Links`** (row 1) — destination spreadsheet URLs for the HS Marks Entry wizard:
+```
+term | name | class_section | url
+```
+The `term`, `name`, and `class_section` values must match the dropdown options on the HS Marks Entry page (e.g. `firstterm`, `madampuii`, `IX-A`). To populate this quickly, open **`HS_Links-seed.tsv`** (in the project folder), select all, copy, and paste into cell **A1** of this tab. It fills in the header plus **every** term/teacher/class combination — First Mid Term already has its real links, and the other terms have a **blank `url` cell** ready for you to fill in. When a new term's entry sheet is ready, just paste its link into that row's `url` cell (no need to add rows). A blank `url` simply means the wizard shows "not configured yet" for that combination. (You can delete `HS_Links-seed.tsv` after pasting.)
 
 5. Add yourself as the first admin in `Users`:
 ```

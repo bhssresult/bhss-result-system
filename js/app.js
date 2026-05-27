@@ -7,6 +7,7 @@
   function start() {
     Auth.init();
     Router.init();
+    HsMarksEntry.init();
     initDropdowns();
   }
 

@@ -10,7 +10,7 @@
  *      - Who has access: Anyone
  *   5. Copy the Web App URL and paste it into js/config.js (GAS_URL)
  *
- * Required Sheet tabs: Users, HS_Students, HSS_Students, HS_Marks, HSS_Marks, ExamConfig, Links
+ * Required Sheet tabs: Users, HS_Students, HSS_Students, HS_Marks, HSS_Marks, ExamConfig, Links, HS_Links
  */
 
 // ============================================================================
@@ -26,6 +26,7 @@ function doGet(e) {
       case 'getUsers':      return sendJson(handleGetUsers(e.parameter));
       case 'getExamConfig': return sendJson(handleGetExamConfig(e.parameter));
       case 'getFormLinks':  return sendJson(handleGetFormLinks(e.parameter));
+      case 'getHsLinks':    return sendJson(handleGetHsLinks(e.parameter));
       case 'ping':          return sendJson({ success: true, message: 'pong' });
       default:              return sendJson({ success: false, error: 'Unknown action: ' + action });
     }
@@ -299,6 +300,31 @@ function handleSaveFormLinks(body) {
     }
   }
   return { success: true };
+}
+
+// ============================================================================
+// HS MARKS ENTRY LINKS
+// ============================================================================
+
+/**
+ * Returns the HS Marks Entry destination URLs from the `HS_Links` sheet
+ * (columns: term, name, class_section, url) as a lookup map keyed by
+ * "term|name|class_section". Consumed by js/hs-marks-entry.js.
+ */
+function handleGetHsLinks(params) {
+  requireRole(params.token, ['teacher', 'admin']);
+  var rows = getSheetObjects('HS_Links');
+  var map = {};
+  for (var i = 0; i < rows.length; i++) {
+    var term = String(rows[i].term || '').trim();
+    var name = String(rows[i].name || '').trim();
+    var cs = String(rows[i].class_section || '').trim();
+    var url = String(rows[i].url || '').trim();
+    if (term && name && cs && url) {
+      map[term + '|' + name + '|' + cs] = url;
+    }
+  }
+  return { success: true, data: { links: map } };
 }
 
 // ============================================================================
