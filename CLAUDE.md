@@ -83,7 +83,7 @@ Toggle logic in `js/app.js#initDropdowns`:
 HS and HSS are intentionally **not symmetric** right now:
 
 - **HSS Results** is a simple nav link → class-selector page → 3 per-class buttons (Marks Entry external link, Marks Entry Review, Result Preview). Uses `Pages.renderSchoolResults('hss')`, `renderMarksReview('hss', class)`, `renderResultPreview('hss', class)`. Form URLs come from the `Links` sheet.
-- **HS Results** is a nested dropdown nav. **Marks Entry** is now an in-app page (`#/hs-marks-entry`, section `#page-hs-marks-entry`) — a 3-step wizard (Term → Teacher → Class & Section) that opens the matching Google Sheet in a new tab. **Entry Review** (`#/hs-entry-review`) and **Results Preview** (`#/hs-results-preview`) remain static placeholder pages.
+- **HS Results** is a nested dropdown nav. **Marks Entry** is now an in-app page (`#/hs-marks-entry`, section `#page-hs-marks-entry`) — a 3-step wizard (Term → Teacher → Class & Section) that navigates to the matching Google Sheet in the same tab. **Entry Review** (`#/hs-entry-review`) and **Results Preview** (`#/hs-results-preview`) remain static placeholder pages.
 
 `Pages.renderSchoolResults`, `renderMarksReview`, `renderResultPreview` are kept because HSS still uses them. Do not delete them when working on HS unless HSS is migrated too.
 

@@ -53,6 +53,16 @@ const HsMarksEntry = (() => {
     ].join("|");
   }
 
+  // Human-readable summary of the current selections, using the visible
+  // option labels, e.g. "First Mid Term | Madam Puii | Class IX A".
+  function selectionLabel() {
+    function labelOf(id) {
+      const sel = $id(id);
+      return sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].text : "";
+    }
+    return [labelOf("hs-dd-term"), labelOf("hs-dd-name"), labelOf("hs-dd-classsection")].join(" | ");
+  }
+
   // ─── EVENT HANDLERS ───────────────────────────────────────────────────────
   function onTermChange() {
     const term = $id("hs-dd-term").value;
@@ -90,7 +100,7 @@ const HsMarksEntry = (() => {
 
     if (url) {
       $id("hs-btn-go").disabled = false;
-      $id("hs-url-preview-text").textContent = url;
+      $id("hs-url-preview-text").textContent = selectionLabel();
       $id("hs-url-preview").classList.remove("hidden");
     } else {
       $id("hs-btn-go").disabled = true;
