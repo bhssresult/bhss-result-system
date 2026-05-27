@@ -19,7 +19,7 @@ A school result management dashboard that runs on **GitHub Pages** and stores it
 
 ## Features
 
-- **Public student lookup** — students enter their roll number, no account needed
+- **Public student result lookup** — a student enters roll number + class + section (+ stream for 11/12); the details are checked against their record and a one-time code is emailed to them. The result is shown only after the code is confirmed. No account needed.
 - **Google OAuth login** — for teachers and admins
 - **HS Results / HSS Results** — three actions per class:
   - Marks Entry → opens your Google Form
@@ -63,14 +63,14 @@ Total: about 30 minutes for the first time. Updates after that take less than a 
 email | name | role | added_date
 ```
 
-**`HS_Students`** (row 1):
+**`HS_Students`** (row 1) — `email` is where the result one-time code is sent:
 ```
-roll_no | name | class | section
+roll_no | name | class | section | email
 ```
 
 **`HSS_Students`** (row 1):
 ```
-roll_no | name | class | section | stream
+roll_no | name | class | section | stream | email
 ```
 
 **`HS_Marks`** (row 1) — list `roll_no`, `class`, then one column for each subject (must match the subject names you'll put in `ExamConfig`):
@@ -94,6 +94,7 @@ Then fill in these starter rows (column A and B):
 | school_name | Your School Name |
 | exam_name | First Terminal Examination |
 | exam_date | 2026-03-15 |
+| sections | A,B,C |
 | hs_classes | 9,10 |
 | hs_subjects | Nepali,English,Math,Science,Social |
 | hs_max_marks | 100,100,100,100,100 |
@@ -122,11 +123,11 @@ The `term`, `name`, and `class_section` values must match the dropdown options o
 your-email@gmail.com | Your Name | admin | 2026-05-27
 ```
 
-6. Add 2–3 sample students to `HS_Students` for testing:
+6. Add 2–3 sample students to `HS_Students` for testing. Set `email` to an address you can check (use your own for the test rows so you receive the code):
 ```
-901 | Ram Kumar | 9 | A
-902 | Sita Devi | 9 | A
-1001 | Hari Lal | 10 | B
+901 | Ram Kumar | 9 | A | you@example.com
+902 | Sita Devi | 9 | A | you@example.com
+1001 | Hari Lal | 10 | B | you@example.com
 ```
 
 7. Add matching marks to `HS_Marks`:
@@ -162,9 +163,11 @@ your-email@gmail.com | Your Name | admin | 2026-05-27
 
 **Quick test:** Paste this in your browser (replace the URL with yours):
 ```
-https://script.google.com/macros/s/.../exec?action=lookupStudent&rollNo=901
+https://script.google.com/macros/s/.../exec?action=getLookupOptions
 ```
-You should see JSON with the student's data. If yes, the backend is working.
+You should see JSON with your class/section/stream options. If yes, the backend is working.
+
+> **Note:** results are no longer returned by roll number alone — there is no public endpoint that does that. The result is only released after the emailed one-time code is confirmed (see the result flow in the Features section).
 
 ---
 
@@ -248,7 +251,7 @@ This lets teachers and admins sign in with their Google accounts.
 ## Testing the Live Site
 
 1. Open `https://YOURUSERNAME.github.io/bhss-result-system/`
-2. **Home tab** — type roll number `901` (one of your samples) → click Search → result card appears
+2. **Home tab** — enter roll `901`, Class `9`, Section `A` → **Send code** → check the email you set on that student row → enter the 6-digit code → **Verify & View Result** → result card appears. (Wrong class/section is rejected with a generic message and no code is sent.)
 3. **Sign In** (top right) — use the email you added to the `Users` sheet as admin
 4. After sign-in, you should see all 4 tabs: Home, Admin, HS Results, HSS Results
 5. **Admin tab** — try adding a user, editing exam config, setting Google Form URLs
@@ -294,6 +297,8 @@ Normal while your OAuth app is in Testing mode. As long as your email is in **Te
 - The GAS Web App URL is reachable by anyone, but every protected endpoint requires a valid Google ID token + an email present in the `Users` sheet.
 - Tokens are stored in `sessionStorage`, which is cleared when the browser tab closes.
 - All values from the sheet are escaped before rendering (no XSS via student names).
+- **Result access is OTP-gated.** A result is only returned after a one-time code (emailed to the student's address on file) is confirmed. The roll/class/section/stream details must match the record before a code is sent, and mismatches return a generic message (no roll-existence or field-level leak). Codes expire in 5 minutes, allow 5 verify attempts, and are rate-limited per roll (60s between sends, max 3 per 15 min) via `CacheService`.
+- **Email sending:** the script sends codes with `MailApp` as the deploying account, so when you authorize the deployment you'll grant a "send email as you" permission. Daily send limits apply — about **100 emails/day on a consumer @gmail.com** account and **~1500/day on Google Workspace**. If a result day could exceed that, deploy under a Workspace account.
 
 ---
 

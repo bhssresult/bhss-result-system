@@ -45,8 +45,10 @@ const Api = (() => {
     return json.data;
   }
 
-  // ---- Public ----
-  const lookupStudent = (rollNo) => get('lookupStudent', { rollNo });
+  // ---- Public (student result, OTP-gated) ----
+  const getLookupOptions = () => get('getLookupOptions', {});
+  const requestResultOtp = (payload) => post('requestResultOtp', payload);
+  const verifyResultOtp = (rollNo, otp) => post('verifyResultOtp', { rollNo, otp });
 
   // ---- Auth ----
   const verifyUser = (token) => post('verifyUser', { token });
@@ -70,7 +72,9 @@ const Api = (() => {
   const saveFormLinks = (links, token) => post('saveFormLinks', { links, token });
 
   return {
-    lookupStudent,
+    getLookupOptions,
+    requestResultOtp,
+    verifyResultOtp,
     verifyUser,
     getMarks,
     saveMarks,

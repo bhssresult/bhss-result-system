@@ -21,7 +21,7 @@ function doGet(e) {
   try {
     var action = (e && e.parameter && e.parameter.action) || '';
     switch (action) {
-      case 'lookupStudent': return sendJson(handleLookupStudent(e.parameter));
+      case 'getLookupOptions': return sendJson(handleGetLookupOptions());
       case 'getMarks':      return sendJson(handleGetMarks(e.parameter));
       case 'getUsers':      return sendJson(handleGetUsers(e.parameter));
       case 'getExamConfig': return sendJson(handleGetExamConfig(e.parameter));
@@ -40,6 +40,8 @@ function doPost(e) {
     var body = JSON.parse(e.postData.contents || '{}');
     var action = body.action || '';
     switch (action) {
+      case 'requestResultOtp': return sendJson(handleRequestResultOtp(body));
+      case 'verifyResultOtp':  return sendJson(handleVerifyResultOtp(body));
       case 'verifyUser':       return sendJson(handleVerifyUser(body));
       case 'saveMarks':        return sendJson(handleSaveMarks(body));
       case 'addUser':          return sendJson(handleAddUser(body));
@@ -154,45 +156,170 @@ function requireRole(token, allowedRoles) {
 }
 
 // ============================================================================
-// PUBLIC: Student Lookup
+// PUBLIC: OTP-gated Student Result
 // ============================================================================
+//
+// Flow: the homepage sends roll + class + section + stream to requestResultOtp,
+// which verifies those details match the student record and emails a 6-digit
+// code. The result itself is only returned by verifyResultOtp after the code is
+// confirmed. There is intentionally NO endpoint that returns a result from the
+// roll number alone.
 
-function handleLookupStudent(params) {
-  var rollNo = String(params.rollNo || '').trim();
-  if (!rollNo) return { success: false, error: 'Roll number required' };
+function csvToArrayGs(s) {
+  return String(s == null ? '' : s).split(',')
+    .map(function (x) { return x.trim(); })
+    .filter(function (x) { return x; });
+}
 
-  // Search HS first, then HSS
-  var schools = ['hs', 'hss'];
-  for (var i = 0; i < schools.length; i++) {
-    var school = schools[i];
-    var studentSheet = school === 'hs' ? 'HS_Students' : 'HSS_Students';
-    var marksSheet = school === 'hs' ? 'HS_Marks' : 'HSS_Marks';
-
-    var students = getSheetObjects(studentSheet);
+// Find a student row by roll number across HS then HSS. Returns
+// { school, student } or null.
+function findStudentByRoll(rollNo) {
+  rollNo = String(rollNo || '').trim();
+  if (!rollNo) return null;
+  var sheets = [['hs', 'HS_Students'], ['hss', 'HSS_Students']];
+  for (var i = 0; i < sheets.length; i++) {
+    var students = getSheetObjects(sheets[i][1]);
     for (var s = 0; s < students.length; s++) {
-      if (String(students[s].roll_no) === rollNo) {
-        var student = students[s];
-        var marksList = getSheetObjects(marksSheet);
-        var marks = null;
-        for (var m = 0; m < marksList.length; m++) {
-          if (String(marksList[m].roll_no) === rollNo) {
-            marks = marksList[m];
-            break;
-          }
-        }
-        return {
-          success: true,
-          data: {
-            school: school,
-            student: student,
-            marks: marks,
-            examConfig: getExamConfigObject()
-          }
-        };
+      if (String(students[s].roll_no).trim() === rollNo) {
+        return { school: sheets[i][0], student: students[s] };
       }
     }
   }
-  return { success: false, error: 'Student not found' };
+  return null;
+}
+
+// Assemble the displayable result (student + marks + examConfig) for a roll
+// number. Strips the email so it is never sent to the client. Returns null if
+// the student is not found.
+function buildStudentResult(rollNo) {
+  var found = findStudentByRoll(rollNo);
+  if (!found) return null;
+  var school = found.school;
+  var student = found.student;
+  var marksSheet = school === 'hs' ? 'HS_Marks' : 'HSS_Marks';
+  var marksList = getSheetObjects(marksSheet);
+  var marks = null;
+  for (var m = 0; m < marksList.length; m++) {
+    if (String(marksList[m].roll_no).trim() === String(student.roll_no).trim()) {
+      marks = marksList[m];
+      break;
+    }
+  }
+  if (student.email !== undefined) delete student.email;
+  if (student.phone !== undefined) delete student.phone;
+  return { school: school, student: student, marks: marks, examConfig: getExamConfigObject() };
+}
+
+// Non-sensitive option lists for the homepage dropdowns.
+function handleGetLookupOptions() {
+  var cfg = getExamConfigObject();
+  var classes = csvToArrayGs(cfg.hs_classes).concat(csvToArrayGs(cfg.hss_classes));
+  var streams = [];
+  ['science', 'arts', 'commerce'].forEach(function (s) {
+    if (cfg['hss_subjects_' + s]) streams.push(s);
+  });
+  return {
+    success: true,
+    data: { classes: classes, streams: streams, sections: csvToArrayGs(cfg.sections) }
+  };
+}
+
+function maskEmail(email) {
+  var parts = String(email).split('@');
+  if (parts.length !== 2 || !parts[0]) return '****';
+  return parts[0].charAt(0) + '•••@' + parts[1];
+}
+
+// Verify the supplied details against the student record and, if they match,
+// email a one-time code. Never reveals which detail was wrong.
+function handleRequestResultOtp(body) {
+  var GENERIC = 'We could not verify those details. Please check and try again.';
+  var rollNo  = String(body.rollNo || '').trim();
+  var cls     = String(body['class'] || '').trim();
+  var section = String(body.section || '').trim();
+  var stream  = String(body.stream || '').trim();
+  if (!rollNo || !cls || !section) return { success: false, error: GENERIC };
+
+  var found = findStudentByRoll(rollNo);
+  if (!found) return { success: false, error: GENERIC };
+  var st = found.student;
+
+  if (String(st['class']).trim() !== cls) return { success: false, error: GENERIC };
+  if (String(st.section || '').trim().toLowerCase() !== section.toLowerCase()) {
+    return { success: false, error: GENERIC };
+  }
+  if (found.school === 'hss' &&
+      String(st.stream || '').trim().toLowerCase() !== stream.toLowerCase()) {
+    return { success: false, error: GENERIC };
+  }
+
+  var email = String(st.email || '').trim();
+  if (!email) {
+    return { success: false, error: 'No email is on file for this student. Please contact the school office.' };
+  }
+
+  var cache = CacheService.getScriptCache();
+  var now = Date.now();
+  var rlKey = 'rotp_rl_' + rollNo;
+  var sends = cache.get(rlKey) ? JSON.parse(cache.get(rlKey)) : { count: 0, last: 0 };
+  if (now - sends.last < 60 * 1000) {
+    return { success: false, error: 'Please wait a minute before requesting another code.' };
+  }
+  if (sends.count >= 3) {
+    return { success: false, error: 'Too many code requests. Please try again later.' };
+  }
+
+  var otp = String(Math.floor(100000 + Math.random() * 900000));
+  cache.put('rotp_' + rollNo, JSON.stringify({ otp: otp, exp: now + 5 * 60 * 1000, attempts: 0 }), 360);
+  sends.count += 1;
+  sends.last = now;
+  cache.put(rlKey, JSON.stringify(sends), 900);
+
+  var cfg = getExamConfigObject();
+  var schoolName = cfg.school_name || 'BHSS Result System';
+  MailApp.sendEmail(
+    email,
+    'Your result access code',
+    'Dear ' + (st.name || 'Student') + ',\n\n' +
+    'Your one-time code to view your result is: ' + otp + '\n' +
+    'This code expires in 5 minutes.\n\n' +
+    'If you did not request this, you can safely ignore this email.\n\n' +
+    schoolName
+  );
+
+  return { success: true, data: { maskedEmail: maskEmail(email) } };
+}
+
+// Confirm the code and, if valid, return the result.
+function handleVerifyResultOtp(body) {
+  var rollNo = String(body.rollNo || '').trim();
+  var otp    = String(body.otp || '').trim();
+  if (!rollNo || !otp) return { success: false, error: 'Enter the code that was emailed to you.' };
+
+  var cache = CacheService.getScriptCache();
+  var key = 'rotp_' + rollNo;
+  var raw = cache.get(key);
+  if (!raw) return { success: false, error: 'Your code has expired. Please request a new one.' };
+
+  var rec = JSON.parse(raw);
+  if (Date.now() > rec.exp) {
+    cache.remove(key);
+    return { success: false, error: 'Your code has expired. Please request a new one.' };
+  }
+  rec.attempts = (rec.attempts || 0) + 1;
+  if (rec.attempts > 5) {
+    cache.remove(key);
+    return { success: false, error: 'Too many incorrect attempts. Please request a new code.' };
+  }
+  if (String(rec.otp) !== otp) {
+    cache.put(key, JSON.stringify(rec), 360);
+    return { success: false, error: 'Incorrect code. Please try again.' };
+  }
+
+  cache.remove(key);
+  var result = buildStudentResult(rollNo);
+  if (!result) return { success: false, error: 'Result not found.' };
+  return { success: true, data: result };
 }
 
 // ============================================================================

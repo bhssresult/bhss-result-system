@@ -15,40 +15,112 @@ const Pages = (() => {
   // ============================================================
   // HOME PAGE (public)
   // ============================================================
-  function renderHome() {
+  async function renderHome() {
     const form = document.getElementById('lookup-form');
+    const otpForm = document.getElementById('otp-form');
     const statusEl = document.getElementById('lookup-status');
     const resultEl = document.getElementById('lookup-result');
+    const classSel = document.getElementById('lookup-class');
+    const sectionSel = document.getElementById('lookup-section');
+    const streamSel = document.getElementById('lookup-stream');
+    const streamWrap = document.getElementById('lookup-stream-wrap');
 
-    form.onsubmit = async (e) => {
-      e.preventDefault();
+    let pendingRoll = '';
+
+    function setStatus(msg, type) {
+      statusEl.textContent = msg || '';
+      statusEl.className = 'mt-3 text-sm ' +
+        (type === 'error' ? 'text-red-600' : type === 'ok' ? 'text-emerald-600' : 'text-slate-600');
+    }
+
+    function isHssClass() {
+      return classSel.value === '11' || classSel.value === '12';
+    }
+
+    // Populate the dropdowns once.
+    if (!classSel.dataset.loaded) {
+      try {
+        const opts = await Api.getLookupOptions();
+        (opts.classes || []).forEach(c => classSel.add(new Option('Class ' + c, c)));
+        (opts.sections || []).forEach(s => sectionSel.add(new Option(s, s)));
+        (opts.streams || []).forEach(s => streamSel.add(new Option(s.charAt(0).toUpperCase() + s.slice(1), s)));
+        classSel.dataset.loaded = '1';
+      } catch (err) {
+        setStatus('Could not load options: ' + (err.message || err), 'error');
+      }
+    }
+
+    // Stream only applies to class 11/12.
+    classSel.onchange = () => {
+      const hss = isHssClass();
+      streamWrap.classList.toggle('hidden', !hss);
+      streamSel.required = hss;
+      if (!hss) streamSel.value = '';
+    };
+
+    // Shared: request a one-time code for the entered details.
+    async function requestOtp() {
       const rollNo = document.getElementById('lookup-rollno').value.trim();
-      if (!rollNo) return;
+      const cls = classSel.value;
+      const section = sectionSel.value;
+      const stream = streamSel.value;
+      if (!rollNo || !cls || !section || (isHssClass() && !stream)) {
+        setStatus('Please fill in all fields.', 'error');
+        return;
+      }
+      Utils.showLoading(true);
+      setStatus('');
+      try {
+        const data = await Api.requestResultOtp({ rollNo, class: cls, section, stream });
+        pendingRoll = rollNo;
+        document.getElementById('otp-email').textContent = data.maskedEmail || 'your email';
+        form.classList.add('hidden');
+        otpForm.classList.remove('hidden');
+        const codeInput = document.getElementById('otp-code');
+        codeInput.value = '';
+        codeInput.focus();
+      } catch (err) {
+        setStatus(err.message || 'We could not verify those details.', 'error');
+      } finally {
+        Utils.showLoading(false);
+      }
+    }
 
-      statusEl.textContent = 'Searching...';
-      statusEl.className = 'mt-3 text-sm text-slate-600';
+    // Step 1 submit.
+    form.onsubmit = (e) => { e.preventDefault(); requestOtp(); };
+
+    // Step 2 submit: verify the code and reveal the result.
+    otpForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const otp = document.getElementById('otp-code').value.trim();
+      if (!otp) return;
+      Utils.showLoading(true);
       resultEl.classList.add('hidden');
       resultEl.innerHTML = '';
-
       try {
-        const data = await Api.lookupStudent(rollNo);
-        statusEl.textContent = '';
-
-        // Update hero with exam name if config available
+        const data = await Api.verifyResultOtp(pendingRoll, otp);
         if (data.examConfig) {
-          const schoolName = data.examConfig.school_name;
-          const examName = data.examConfig.exam_name;
-          if (schoolName) document.getElementById('home-school-name').textContent = schoolName;
-          if (examName) document.getElementById('home-exam-name').textContent = examName;
+          if (data.examConfig.school_name) document.getElementById('home-school-name').textContent = data.examConfig.school_name;
+          if (data.examConfig.exam_name) document.getElementById('home-exam-name').textContent = data.examConfig.exam_name;
         }
-
         resultEl.innerHTML = renderResultCard(data.school, data.student, data.marks, data.examConfig, true);
         resultEl.classList.remove('hidden');
         wireResultCardButtons(resultEl);
+        otpForm.classList.add('hidden');
+        setStatus('');
       } catch (err) {
-        statusEl.textContent = err.message || 'Student not found';
-        statusEl.className = 'mt-3 text-sm text-red-600';
+        setStatus(err.message || 'Incorrect code.', 'error');
+      } finally {
+        Utils.showLoading(false);
       }
+    };
+
+    document.getElementById('otp-resend').onclick = () => requestOtp();
+    document.getElementById('otp-change').onclick = () => {
+      otpForm.classList.add('hidden');
+      form.classList.remove('hidden');
+      resultEl.classList.add('hidden');
+      setStatus('');
     };
   }
 

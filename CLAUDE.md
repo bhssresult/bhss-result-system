@@ -111,6 +111,8 @@ The app uses an **indigo/violet** palette (matching the HS Marks Entry portal). 
 
 Eight sheets: `Users`, `HS_Students`, `HSS_Students`, `HS_Marks`, `HSS_Marks`, `ExamConfig`, `Links`, `HS_Links`.
 
+`HS_Students` / `HSS_Students` carry an **`email`** column — the address the result OTP is sent to (HSS also has `stream`). The `email` is stripped from `buildStudentResult` before the result is returned to the client. `ExamConfig` has a **`sections`** key (CSV, e.g. `A,B,C`) used to populate the homepage Section dropdown.
+
 `HS_Links` (columns: `term`, `name`, `class_section`, `url`) holds the HS Marks Entry destination URLs. `term`/`name`/`class_section` must match the `<option value>`s in the HS Marks Entry `<select>`s in `index.html` (e.g. `firstterm`, `madampuii`, `IX-A`). Read by `handleGetHsLinks` and exposed as a `"term|name|class_section" → url` map.
 
 `ExamConfig` is a key-value store (columns: `key`, `value`, `updated_date`). Subject lists, max marks, and pass marks are stored as comma-separated strings and parsed with `Utils.csvToArray()` / `Utils.csvToNumbers()`.
@@ -159,4 +161,5 @@ Do not add `display: none` rules targeting specific `#page-*` IDs by name — th
 - **No `innerHTML` with unescaped data** — always use `Utils.escapeHtml()` (aliased as `esc` in `pages.js`) when rendering sheet data into HTML strings.
 - **GAS URL stability** — the `GAS_URL` in `js/config.js` must not change after initial setup (teachers bookmark the site). Always use "new version" on the existing deployment, never create a new deployment.
 - **Role values** — the only valid roles are `admin` and `teacher` (lowercase). The `Users` sheet and all role checks use these exact strings.
-- **Roll numbers** — must be unique across both `HS_Students` and `HSS_Students` sheets. `lookupStudent` searches HS first, then HSS, and returns the first match.
+- **Roll numbers** — must be unique across both `HS_Students` and `HSS_Students` sheets. `findStudentByRoll` searches HS first, then HSS, and returns the first match.
+- **Public results are OTP-gated** — there is intentionally no endpoint that returns a result from a roll number alone (the old public `lookupStudent` was removed). The homepage flow is: `requestResultOtp` (verifies roll + class + section + stream against the record, emails a 6-digit code via `MailApp`, returns only a masked email) → `verifyResultOtp` (checks the code, then returns `buildStudentResult`). OTP state lives in `CacheService` (5-min expiry, 5 verify attempts, per-roll send rate-limit). Mismatches return a generic error — never reveal which field or whether the roll exists. `getLookupOptions` (public GET) returns only the non-sensitive class/section/stream lists for the dropdowns.
