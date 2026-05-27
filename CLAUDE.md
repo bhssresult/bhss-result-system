@@ -42,7 +42,7 @@ Every authenticated API call sends the raw Google ID token (JWT) in the request 
 All JS files use the IIFE module pattern (`const X = (() => { ... return {...}; })();`). Globals exposed: `Utils`, `Api`, `Auth`, `Pages`, `Router`. Script load order in `index.html` is critical:
 
 ```
-config.js → utils.js → api.js → auth.js → pages.js → router.js → app.js
+config.js → utils.js → api.js → auth.js → pages.js → hs-marks-entry.js → router.js → app.js
 ```
 
 ### State Management
@@ -162,4 +162,4 @@ Do not add `display: none` rules targeting specific `#page-*` IDs by name — th
 - **GAS URL stability** — the `GAS_URL` in `js/config.js` must not change after initial setup (teachers bookmark the site). Always use "new version" on the existing deployment, never create a new deployment.
 - **Role values** — the only valid roles are `admin` and `teacher` (lowercase). The `Users` sheet and all role checks use these exact strings.
 - **Roll numbers** — must be unique across both `HS_Students` and `HSS_Students` sheets. `findStudentByRoll` searches HS first, then HSS, and returns the first match.
-- **Public results are OTP-gated** — there is intentionally no endpoint that returns a result from a roll number alone (the old public `lookupStudent` was removed). The homepage flow is: `requestResultOtp` (verifies roll + class + section + stream against the record, emails a 6-digit code via `MailApp`, returns only a masked email) → `verifyResultOtp` (checks the code, then returns `buildStudentResult`). OTP state lives in `CacheService` (5-min expiry, 5 verify attempts, per-roll send rate-limit). Mismatches return a generic error — never reveal which field or whether the roll exists. `getLookupOptions` (public GET) returns only the non-sensitive class/section/stream lists for the dropdowns.
+- **Public results are OTP-gated** — there is intentionally no endpoint that returns a result from a roll number alone (the old public `lookupStudent` was removed). The homepage flow is: `requestResultOtp` (verifies roll + class + section + stream against the record, emails a 6-digit code via `MailApp`, returns only a masked email) → `verifyResultOtp` (checks the code, then returns `buildStudentResult`). OTP state lives in `CacheService`: 6-digit code, 5-minute expiry (360s TTL), max 5 verify attempts. Per-roll send rate-limit: 60s minimum between sends, max 3 sends per 15-minute window (900s TTL on the rate-limit key `rotp_rl_<rollNo>`). After exhausting all 3 sends the wait is up to 15 minutes. Mismatches return a generic error — never reveal which field or whether the roll exists. `getLookupOptions` (public GET) returns only the non-sensitive class/section/stream lists for the dropdowns.
