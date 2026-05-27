@@ -1,0 +1,135 @@
+/* ============================================================
+   School Result System - Custom CSS
+   Most styling is handled by Tailwind CDN. This file holds:
+     - Print styles (so only result cards print)
+     - Loading overlay flex display
+     - Small overrides for nav active state
+   ============================================================ */
+
+#loading-overlay {
+  display: none;
+}
+#loading-overlay.show {
+  display: flex;
+}
+
+#toast {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+#toast.show {
+  display: block;
+}
+
+.nav-link.active {
+  background-color: #1e40af;
+}
+
+.result-card {
+  page-break-inside: avoid;
+  page-break-after: always;
+}
+.result-card:last-child {
+  page-break-after: auto;
+}
+
+/* Subject table inside result cards */
+.subjects-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.subjects-table th,
+.subjects-table td {
+  border: 1px solid #cbd5e1;
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 0.92rem;
+}
+.subjects-table th {
+  background-color: #f1f5f9;
+  font-weight: 600;
+}
+.subjects-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-row {
+  background-color: #fef9c3;
+  font-weight: 600;
+}
+
+.status-pass {
+  color: #15803d;
+  font-weight: 700;
+}
+.status-fail {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+/* ============================================================
+   PRINT
+   ============================================================ */
+@media print {
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Hide nav, footer, buttons, search UI */
+  .no-print,
+  nav,
+  footer,
+  #toast,
+  #loading-overlay {
+    display: none !important;
+  }
+
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  /* Pages the router hid (class="hidden") stay hidden */
+  .page.hidden {
+    display: none !important;
+  }
+
+  /* On the Home page: hide hero + search form, show only the result card */
+  #page-home > div:not(#lookup-result) {
+    display: none !important;
+  }
+
+  /* Result preview: hide the action buttons row */
+  #result-preview-title,
+  #result-preview-refresh,
+  #result-preview-print {
+    display: none !important;
+  }
+
+  .result-card {
+    box-shadow: none !important;
+    border: 1px solid #475569;
+    margin: 0 0 12mm 0;
+    padding: 10mm !important;
+    background: white !important;
+  }
+}
+
+/* ============================================================
+   UTILITY: smooth scroll
+   ============================================================ */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Input number spinner removal (cleaner look) */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}

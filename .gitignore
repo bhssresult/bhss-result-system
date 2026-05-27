@@ -1,0 +1,25 @@
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Node / build artifacts (not used here, but harmless)
+node_modules/
+dist/
+build/
+
+# Local configuration backups
+*.bak
+*.tmp
+
+# Claude planning files (kept local, not pushed)
+.claude/

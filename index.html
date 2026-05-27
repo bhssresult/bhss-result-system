@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BHSS Result System</title>
+
+  <!-- Tailwind CSS via CDN (no build step needed) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50:  '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              900: '#1e3a8a'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- ====================================================================
+       NAVIGATION
+       ==================================================================== -->
+  <nav class="bg-brand-700 text-white shadow-md no-print">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between flex-wrap gap-3">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">🎓</span>
+        <span class="font-bold text-lg">BHSS Result System</span>
+      </div>
+
+      <div class="flex items-center gap-1 flex-wrap" id="nav-links">
+        <a href="#/home" data-nav="home" class="nav-link px-3 py-2 rounded hover:bg-brand-600 transition">Home</a>
+        <a href="#/admin" data-nav="admin" data-roles="admin" class="nav-link px-3 py-2 rounded hover:bg-brand-600 transition hidden">Admin</a>
+
+        <!-- HS Results: nested dropdown -->
+        <div class="relative" data-dropdown data-roles="admin,teacher" hidden>
+          <button type="button" data-nav="hs-results" class="nav-link dropdown-toggle px-3 py-2 rounded hover:bg-brand-600 transition flex items-center gap-1">
+            HS Results <span class="text-xs">▾</span>
+          </button>
+          <div class="dropdown-menu hidden absolute top-full right-0 mt-1 bg-white text-slate-800 rounded-lg shadow-lg z-50 min-w-[200px] py-1">
+            <a href="https://bhssresult.github.io/HS-Marks-Entry/" target="_blank" rel="noopener"
+               class="block px-4 py-2 hover:bg-slate-100 transition">📝 Marks Entry</a>
+
+            <!-- Nested: Results sub-dropdown -->
+            <div class="relative" data-dropdown>
+              <button type="button" class="dropdown-toggle w-full text-left px-4 py-2 hover:bg-slate-100 transition flex items-center justify-between gap-2">
+                <span>📊 Results</span>
+                <span class="text-xs">▸</span>
+              </button>
+              <div class="dropdown-menu hidden absolute top-0 right-full mr-1 bg-white text-slate-800 rounded-lg shadow-lg z-50 min-w-[200px] py-1">
+                <a href="#/hs-entry-review" class="block px-4 py-2 hover:bg-slate-100 transition">📋 Entry Review</a>
+                <a href="#/hs-results-preview" class="block px-4 py-2 hover:bg-slate-100 transition">🏆 Results Preview</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <a href="#/hss-results" data-nav="hss-results" data-roles="admin,teacher" class="nav-link px-3 py-2 rounded hover:bg-brand-600 transition hidden">HSS Results</a>
+      </div>
+
+      <div id="auth-area" class="flex items-center gap-3">
+        <!-- Populated by auth.js: either Google sign-in button or user info + logout -->
+        <div id="google-signin-btn"></div>
+        <div id="user-info" class="hidden items-center gap-3">
+          <span id="user-name" class="text-sm"></span>
+          <span id="user-role" class="text-xs bg-brand-900 px-2 py-1 rounded uppercase"></span>
+          <button id="logout-btn" class="bg-white text-brand-700 px-3 py-1 rounded font-semibold hover:bg-slate-100 transition text-sm">Logout</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ====================================================================
+       MAIN CONTENT
+       ==================================================================== -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
+
+    <!-- HOME PAGE (public) -->
+    <section id="page-home" class="page hidden">
+      <div class="bg-gradient-to-br from-brand-600 to-brand-900 text-white rounded-2xl p-8 md:p-12 shadow-lg mb-6">
+        <h1 class="text-3xl md:text-4xl font-bold mb-2" id="home-school-name">BHSS Result Portal</h1>
+        <p class="text-brand-100 text-lg" id="home-exam-name">View your examination results online</p>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow p-6 mb-6">
+        <h2 class="text-xl font-bold mb-4">🔍 Check Your Result</h2>
+        <form id="lookup-form" class="flex flex-col sm:flex-row gap-3">
+          <input
+            type="text"
+            id="lookup-rollno"
+            placeholder="Enter your roll number (e.g. 901)"
+            required
+            class="flex-1 border border-slate-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+          <button
+            type="submit"
+            class="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3 rounded-lg transition"
+          >
+            Search Result
+          </button>
+        </form>
+        <div id="lookup-status" class="mt-3 text-sm"></div>
+      </div>
+
+      <div id="lookup-result" class="hidden"></div>
+
+      <div class="bg-white rounded-2xl shadow p-6 mt-6 no-print">
+        <h3 class="font-bold mb-2">For Teachers and Administrators</h3>
+        <p class="text-sm text-slate-600">Sign in with your school Google account using the button at the top right to access marks entry, review, and result preview tools.</p>
+      </div>
+    </section>
+
+    <!-- ADMIN PAGE -->
+    <section id="page-admin" class="page hidden">
+      <h1 class="text-3xl font-bold mb-6">⚙️ Admin Panel</h1>
+
+      <div class="bg-white rounded-xl shadow mb-6">
+        <div class="border-b border-slate-200 flex flex-wrap">
+          <button data-tab="users"     class="admin-tab px-5 py-3 font-semibold border-b-2 border-brand-600 text-brand-700">User Management</button>
+          <button data-tab="exam"      class="admin-tab px-5 py-3 font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800">Exam Configuration</button>
+          <button data-tab="links"     class="admin-tab px-5 py-3 font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800">Form Links</button>
+        </div>
+
+        <div id="admin-tab-users" class="admin-tab-panel p-6"></div>
+        <div id="admin-tab-exam" class="admin-tab-panel p-6 hidden"></div>
+        <div id="admin-tab-links" class="admin-tab-panel p-6 hidden"></div>
+      </div>
+    </section>
+
+    <!-- HS ENTRY REVIEW (placeholder) -->
+    <section id="page-hs-entry-review" class="page hidden">
+      <h1 class="text-3xl font-bold mb-2">📋 HS Entry Review</h1>
+      <p class="text-slate-600 mb-6">High School marks entry review</p>
+      <div class="bg-white rounded-2xl shadow p-8 text-center">
+        <div class="text-5xl mb-3">🚧</div>
+        <p class="text-slate-600">This page is a placeholder. Content coming soon.</p>
+      </div>
+    </section>
+
+    <!-- HS RESULTS PREVIEW (placeholder) -->
+    <section id="page-hs-results-preview" class="page hidden">
+      <h1 class="text-3xl font-bold mb-2">🏆 HS Results Preview</h1>
+      <p class="text-slate-600 mb-6">High School result preview</p>
+      <div class="bg-white rounded-2xl shadow p-8 text-center">
+        <div class="text-5xl mb-3">🚧</div>
+        <p class="text-slate-600">This page is a placeholder. Content coming soon.</p>
+      </div>
+    </section>
+
+    <!-- HSS RESULTS PAGE -->
+    <section id="page-hss-results" class="page hidden">
+      <h1 class="text-3xl font-bold mb-2">📖 HSS Results</h1>
+      <p class="text-slate-600 mb-6">Higher Secondary School (Class 11 &amp; 12)</p>
+      <div id="hss-class-buttons" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+    </section>
+
+    <!-- MARKS REVIEW PAGE -->
+    <section id="page-marks-review" class="page hidden">
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <h1 class="text-2xl font-bold" id="marks-review-title">Marks Entry Review</h1>
+        <button id="marks-review-refresh" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded font-semibold">Refresh</button>
+      </div>
+      <div id="marks-review-content" class="bg-white rounded-xl shadow p-4 overflow-x-auto"></div>
+    </section>
+
+    <!-- RESULT PREVIEW PAGE -->
+    <section id="page-result-preview" class="page hidden">
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-3 no-print">
+        <h1 class="text-2xl font-bold" id="result-preview-title">Result Preview</h1>
+        <div class="flex gap-2">
+          <button id="result-preview-refresh" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 rounded font-semibold">Refresh</button>
+          <button id="result-preview-print" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded font-semibold">🖨️ Print All</button>
+        </div>
+      </div>
+      <div id="result-preview-content"></div>
+    </section>
+
+    <!-- ACCESS DENIED PAGE -->
+    <section id="page-access-denied" class="page hidden">
+      <div class="bg-white rounded-xl shadow p-10 text-center">
+        <div class="text-6xl mb-4">🔒</div>
+        <h2 class="text-2xl font-bold mb-2">Access Denied</h2>
+        <p class="text-slate-600 mb-6">You don't have permission to view this page. Please sign in with an authorized account.</p>
+        <a href="#/home" class="inline-block bg-brand-600 hover:bg-brand-700 text-white px-6 py-2 rounded font-semibold">Go to Home</a>
+      </div>
+    </section>
+
+    <!-- NOT FOUND PAGE -->
+    <section id="page-not-found" class="page hidden">
+      <div class="bg-white rounded-xl shadow p-10 text-center">
+        <div class="text-6xl mb-4">🤔</div>
+        <h2 class="text-2xl font-bold mb-2">Page Not Found</h2>
+        <a href="#/home" class="inline-block bg-brand-600 hover:bg-brand-700 text-white px-6 py-2 rounded font-semibold mt-4">Go to Home</a>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="bg-slate-800 text-slate-300 text-center py-4 text-sm no-print">
+    <p>BHSS Result System &middot; Powered by Google Sheets</p>
+  </footer>
+
+  <!-- TOAST -->
+  <div id="toast" class="fixed top-4 right-4 z-50 hidden">
+    <div id="toast-inner" class="px-4 py-3 rounded shadow-lg text-white font-semibold"></div>
+  </div>
+
+  <!-- LOADING OVERLAY -->
+  <div id="loading-overlay" class="fixed inset-0 bg-slate-900/40 z-40 hidden items-center justify-center">
+    <div class="bg-white px-6 py-4 rounded-lg shadow flex items-center gap-3">
+      <div class="w-5 h-5 border-2 border-brand-600 border-t-transparent rounded-full animate-spin"></div>
+      <span>Loading...</span>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       SCRIPTS (load order matters)
+       ==================================================================== -->
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/pages.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
