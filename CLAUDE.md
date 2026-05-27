@@ -111,7 +111,7 @@ The app uses an **indigo/violet** palette (matching the HS Marks Entry portal). 
 
 Eight sheets: `Users`, `HS_Students`, `HSS_Students`, `HS_Marks`, `HSS_Marks`, `ExamConfig`, `Links`, `HS_Links`.
 
-`HS_Students` / `HSS_Students` carry an **`email`** column — the address the result OTP is sent to (HSS also has `stream`). The `email` is stripped from `buildStudentResult` before the result is returned to the client. `ExamConfig` has a **`sections`** key (CSV, e.g. `A,B,C`) used to populate the homepage Section dropdown.
+`HS_Students` / `HSS_Students` carry an **`email`** column — the address the result OTP is sent to (HSS also has `stream`). The `email` is stripped from `buildStudentResult` before the result is returned to the client. `ExamConfig` has a **`sections`** key (CSV, e.g. `A,B,C`) used to populate the homepage Section dropdown, and an optional **`contact_email`** key used as the Reply-To on the OTP email. The OTP email is sent with a sender display name (`school_name`) and a branded HTML body (`handleRequestResultOtp`).
 
 `HS_Links` (columns: `term`, `name`, `class_section`, `url`) holds the HS Marks Entry destination URLs. `term`/`name`/`class_section` must match the `<option value>`s in the HS Marks Entry `<select>`s in `index.html` (e.g. `firstterm`, `madampuii`, `IX-A`). Read by `handleGetHsLinks` and exposed as a `"term|name|class_section" → url` map.
 

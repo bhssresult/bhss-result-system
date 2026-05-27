@@ -171,6 +171,12 @@ function csvToArrayGs(s) {
     .filter(function (x) { return x; });
 }
 
+function escapeHtmlGs(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 // Find a student row by roll number across HS then HSS. Returns
 // { school, student } or null.
 function findStudentByRoll(rollNo) {
@@ -277,15 +283,36 @@ function handleRequestResultOtp(body) {
 
   var cfg = getExamConfigObject();
   var schoolName = cfg.school_name || 'BHSS Result System';
-  MailApp.sendEmail(
-    email,
-    'Your result access code',
-    'Dear ' + (st.name || 'Student') + ',\n\n' +
-    'Your one-time code to view your result is: ' + otp + '\n' +
-    'This code expires in 5 minutes.\n\n' +
-    'If you did not request this, you can safely ignore this email.\n\n' +
-    schoolName
-  );
+  var replyTo = String(cfg.contact_email || '').trim();
+  var studentName = st.name || 'Student';
+
+  var plainBody =
+    'Dear ' + studentName + ',\n\n' +
+    'Your one-time code to view your ' + schoolName + ' result is:\n\n' +
+    '    ' + otp + '\n\n' +
+    'This code expires in 5 minutes. If you did not request it, you can ignore this email.\n\n' +
+    '— ' + schoolName;
+
+  var htmlBody =
+    '<div style="font-family:Arial,Helvetica,sans-serif;max-width:480px;margin:0 auto;color:#1e293b">' +
+      '<div style="background:#4338ca;color:#ffffff;padding:16px 20px;border-radius:12px 12px 0 0;font-size:16px;font-weight:bold">' +
+        escapeHtmlGs(schoolName) +
+      '</div>' +
+      '<div style="border:1px solid #e2e8f0;border-top:0;border-radius:0 0 12px 12px;padding:20px">' +
+        '<p style="margin:0 0 12px">Dear ' + escapeHtmlGs(studentName) + ',</p>' +
+        '<p style="margin:0 0 8px">Use this one-time code to view your result:</p>' +
+        '<div style="font-size:30px;font-weight:bold;letter-spacing:6px;background:#eef2ff;color:#4338ca;text-align:center;padding:14px;border-radius:10px;margin:8px 0 16px">' +
+          otp +
+        '</div>' +
+        '<p style="margin:0 0 8px;color:#64748b;font-size:14px">This code expires in 5 minutes.</p>' +
+        '<p style="margin:0;color:#94a3b8;font-size:12px">If you did not request this, you can safely ignore this email.</p>' +
+      '</div>' +
+      '<p style="text-align:center;color:#94a3b8;font-size:12px;margin:12px 0">' + escapeHtmlGs(schoolName) + '</p>' +
+    '</div>';
+
+  var options = { name: schoolName, htmlBody: htmlBody };
+  if (replyTo) options.replyTo = replyTo;
+  MailApp.sendEmail(email, 'Your ' + schoolName + ' result access code', plainBody, options);
 
   return { success: true, data: { maskedEmail: maskEmail(email) } };
 }
