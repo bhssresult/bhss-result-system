@@ -171,6 +171,7 @@ const Auth = (() => {
 
   return {
     init,
+    refreshAuthUI: renderAuthUI,
     isLoggedIn,
     getRole,
     getToken,

@@ -9,6 +9,44 @@
     Router.init();
     HsMarksEntry.init();
     initDropdowns();
+    initMobileNav();
+  }
+
+  // Mobile hamburger: toggles the collapsible nav panel (#nav-menu).
+  function initMobileNav() {
+    const toggle = document.getElementById('nav-toggle');
+    const menu = document.getElementById('nav-menu');
+    if (!toggle || !menu) return;
+
+    function close() {
+      menu.classList.add('hidden');
+      toggle.setAttribute('aria-expanded', 'false');
+    }
+    function open() {
+      menu.classList.remove('hidden');
+      toggle.setAttribute('aria-expanded', 'true');
+      // Re-render the Google sign-in button now that its container is visible
+      // (GIS can render a 0-width/blank button inside a hidden element).
+      if (typeof Auth !== 'undefined' && Auth.refreshAuthUI) Auth.refreshAuthUI();
+    }
+
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (menu.classList.contains('hidden')) open();
+      else close();
+    });
+
+    // Tapping a real link collapses the menu; tapping a dropdown toggle button
+    // just expands its submenu (handled by initDropdowns), so leave it open.
+    menu.addEventListener('click', (e) => {
+      if (e.target.closest('a')) close();
+    });
+
+    // Collapse on navigation, and when tapping outside the nav.
+    window.addEventListener('hashchange', close);
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('nav')) close();
+    });
   }
 
   function closeAllDropdowns() {

@@ -492,7 +492,7 @@ const Pages = (() => {
         .concat(school === 'hss' ? ['Stream'] : [])
         .concat(subjectKeys);
 
-      const headerHtml = headerCells.map(h => `<th class="py-2 px-3 bg-slate-100 text-left text-sm">${esc(h)}</th>`).join('');
+      const headerHtml = headerCells.map(h => `<th class="py-2 px-3 bg-slate-100 text-left text-sm whitespace-nowrap">${esc(h)}</th>`).join('');
 
       const rowHtml = marks.map(m => {
         const cells = [
@@ -503,7 +503,7 @@ const Pages = (() => {
         if (school === 'hss') cells.push(esc(m.stream || ''));
         subjectKeys.forEach(k => cells.push(esc(m[k] !== undefined && m[k] !== '' ? m[k] : '-')));
         return '<tr class="border-b border-slate-100">' +
-               cells.map(c => `<td class="py-2 px-3 text-sm">${c}</td>`).join('') +
+               cells.map(c => `<td class="py-2 px-3 text-sm whitespace-nowrap">${c}</td>`).join('') +
                '</tr>';
       }).join('');
 

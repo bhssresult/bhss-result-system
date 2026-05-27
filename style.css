@@ -124,6 +124,15 @@ body {
   font-weight: 700;
 }
 
+/* Compact the result-card subject table on small phones so all 5 columns fit */
+@media (max-width: 480px) {
+  .subjects-table th,
+  .subjects-table td {
+    padding: 4px 6px;
+    font-size: 0.8rem;
+  }
+}
+
 /* ============================================================
    PRINT
    ============================================================ */
