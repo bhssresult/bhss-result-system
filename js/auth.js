@@ -61,19 +61,19 @@ const Auth = (() => {
    * or the user info + logout button (if logged in).
    */
   function renderAuthUI() {
-    const signinDiv = document.getElementById('google-signin-btn');
+    const signinBar = document.getElementById('signin-bar');
     const userInfo  = document.getElementById('user-info');
     const userName  = document.getElementById('user-name');
     const userRole  = document.getElementById('user-role');
 
     if (state.user) {
-      signinDiv.classList.add('hidden');
+      if (signinBar) signinBar.classList.add('hidden');
       userInfo.classList.remove('hidden');
       userInfo.classList.add('flex');
       userName.textContent = state.user.name || state.user.email;
       userRole.textContent = state.role || '';
     } else {
-      signinDiv.classList.remove('hidden');
+      if (signinBar) signinBar.classList.remove('hidden');
       userInfo.classList.add('hidden');
       userInfo.classList.remove('flex');
       userName.textContent = '';
@@ -171,7 +171,6 @@ const Auth = (() => {
 
   return {
     init,
-    refreshAuthUI: renderAuthUI,
     isLoggedIn,
     getRole,
     getToken,

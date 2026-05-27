@@ -88,18 +88,24 @@
           <a href="#/hss-results" data-nav="hss-results" data-roles="admin,teacher" class="nav-link px-3 py-2 rounded hover:bg-brand-600 transition hidden">HSS Results</a>
         </div>
 
-        <div id="auth-area" class="flex flex-col md:flex-row md:items-center gap-3 mt-3 md:mt-0 pt-3 md:pt-0 border-t border-brand-600 md:border-0">
-          <!-- Populated by auth.js: either Google sign-in button or user info + logout -->
-          <div id="google-signin-btn"></div>
-          <div id="user-info" class="hidden items-center gap-3">
-            <span id="user-name" class="text-sm"></span>
-            <span id="user-role" class="text-xs bg-brand-900 px-2 py-1 rounded uppercase"></span>
-            <button id="logout-btn" class="bg-white text-brand-700 px-3 py-1 rounded font-semibold hover:bg-slate-100 transition text-sm">Logout</button>
-          </div>
+        <!-- Logged-in user info + logout: in the hamburger on mobile, top-right on desktop -->
+        <div id="user-info" class="hidden items-center gap-3 mt-3 md:mt-0 pt-3 md:pt-0 border-t border-brand-600 md:border-0">
+          <span id="user-name" class="text-sm"></span>
+          <span id="user-role" class="text-xs bg-brand-900 px-2 py-1 rounded uppercase"></span>
+          <button id="logout-btn" class="bg-white text-brand-700 px-3 py-1 rounded font-semibold hover:bg-slate-100 transition text-sm">Logout</button>
         </div>
       </div>
     </div>
   </nav>
+
+  <!-- Sign-in bar: shown only when signed out. Kept outside the mobile menu so
+       the Google button always renders in a visible, stable-width container
+       (avoids the hidden-container re-render flicker). -->
+  <div id="signin-bar" class="hidden no-print bg-white border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-center md:justify-end">
+      <div id="google-signin-btn"></div>
+    </div>
+  </div>
 
   <!-- ====================================================================
        MAIN CONTENT

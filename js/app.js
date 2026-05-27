@@ -25,9 +25,6 @@
     function open() {
       menu.classList.remove('hidden');
       toggle.setAttribute('aria-expanded', 'true');
-      // Re-render the Google sign-in button now that its container is visible
-      // (GIS can render a 0-width/blank button inside a hidden element).
-      if (typeof Auth !== 'undefined' && Auth.refreshAuthUI) Auth.refreshAuthUI();
     }
 
     toggle.addEventListener('click', (e) => {
