@@ -53,6 +53,8 @@ Auth state lives in `Auth` (module-level variable + `sessionStorage` key `srs_se
 
 Hash-based SPA (`#/home`, `#/admin`, etc.). All `<section id="page-*">` elements exist in the DOM at all times — the router adds/removes Tailwind's `hidden` class to show one at a time. Route access control (`roles` array in the routes map in `router.js`) re-checks `Auth.getRole()` on every navigation and on every auth state change.
 
+**Admin home:** admins never see the public `#/home` lookup page. `handleRoute` redirects `home` → `#/admin` when `Auth.getRole() === 'admin'` (so the logo, which links to `#/home`, lands an admin on the Admin page). The Home nav link is hidden for admins via a `data-hide-roles="admin"` attribute (the inverse of `data-roles`, handled in `updateNavVisibility`) — it stays visible to logged-out students and teachers.
+
 ### Navigation Dropdowns
 
 The nav supports nested dropdowns (used by HS Results). Pattern in `index.html`:

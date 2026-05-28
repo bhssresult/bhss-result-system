@@ -84,10 +84,25 @@ const Router = (() => {
         else el.classList.add('hidden');
       }
     });
+
+    // Inverse of data-roles: hide an element for specific roles only. Used for
+    // the Home link, which is hidden for admins (their home is the Admin page)
+    // but stays visible to logged-out students and teachers.
+    document.querySelectorAll('nav [data-hide-roles]').forEach(el => {
+      const hideFor = el.dataset.hideRoles.split(',');
+      el.classList.toggle('hidden', !!role && hideFor.indexOf(role) !== -1);
+    });
   }
 
   async function handleRoute() {
     const { path, params } = parseHash();
+
+    // Admins use the Admin page as their home — never show the public lookup.
+    if (path === 'home' && Auth.getRole() === 'admin') {
+      if (location.hash !== '#/admin') location.hash = '#/admin';
+      return;
+    }
+
     const route = routes[path];
 
     if (!route) {
