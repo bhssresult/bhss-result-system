@@ -8,8 +8,13 @@
 const Auth = (() => {
 
   const STORAGE_KEY = 'srs_session';
+  const INACTIVITY_MS = 30 * 60 * 1000; // auto sign-out after 30 min idle
   let state = { user: null, role: null, token: null };
   const listeners = [];
+
+  let logoutTimer = null;
+  let tokenExpMs = null;     // absolute time (ms) the JWT expires
+  let lastReschedule = 0;    // throttle activity-driven reschedules
 
   function loadFromStorage() {
     try {
@@ -30,6 +35,46 @@ const Auth = (() => {
 
   function clearStorage() {
     try { sessionStorage.removeItem(STORAGE_KEY); } catch (e) {}
+  }
+
+  // Read the `exp` claim (seconds since epoch) from a Google ID token JWT.
+  function decodeTokenExp(token) {
+    try {
+      const part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(part));
+      return payload.exp ? payload.exp * 1000 : null;
+    } catch (e) { return null; }
+  }
+
+  // Schedule an automatic sign-out at the earlier of: 30 min of inactivity,
+  // or the moment the Google token actually expires (so the backend never
+  // sees a stale token and returns "Invalid token").
+  function scheduleAutoLogout() {
+    clearTimeout(logoutTimer);
+    if (!state.token) return;
+    const now = Date.now();
+    let fireAt = now + INACTIVITY_MS;
+    if (tokenExpMs && tokenExpMs < fireAt) fireAt = tokenExpMs;
+    logoutTimer = setTimeout(function () {
+      logout('Your session expired. Please sign in again.');
+    }, Math.max(0, fireAt - now));
+  }
+
+  function onActivity() {
+    if (!state.user) return;
+    const now = Date.now();
+    if (now - lastReschedule < 5000) return; // reschedule at most once / 5s
+    lastReschedule = now;
+    scheduleAutoLogout();
+  }
+
+  // When the tab regains focus (e.g. laptop woke from sleep), the scheduled
+  // timer may not have fired yet — sign out immediately if already expired.
+  function onVisible() {
+    if (document.visibilityState !== 'visible' || !state.user) return;
+    if (tokenExpMs && Date.now() >= tokenExpMs) {
+      logout('Your session expired. Please sign in again.');
+    }
   }
 
   function getState() {
@@ -89,7 +134,22 @@ const Auth = (() => {
   function init() {
     loadFromStorage();
 
-    document.getElementById('logout-btn').addEventListener('click', logout);
+    document.getElementById('logout-btn').addEventListener('click', function () { logout(); });
+
+    ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'].forEach(function (evt) {
+      window.addEventListener(evt, onActivity, { passive: true });
+    });
+    document.addEventListener('visibilitychange', onVisible);
+
+    // If a stored session's token has already expired, drop it on load.
+    if (state.token) {
+      tokenExpMs = decodeTokenExp(state.token);
+      if (tokenExpMs && Date.now() >= tokenExpMs) {
+        logout('Your session expired. Please sign in again.');
+        return;
+      }
+      scheduleAutoLogout();
+    }
 
     // GIS might not be loaded yet; renderAuthUI will retry.
     renderAuthUI();
@@ -144,6 +204,8 @@ const Auth = (() => {
         token: token
       };
       saveToStorage();
+      tokenExpMs = decodeTokenExp(token);
+      scheduleAutoLogout();
       renderAuthUI();
       notify();
       Utils.showToast('Signed in as ' + data.name, 'success');
@@ -156,7 +218,9 @@ const Auth = (() => {
     }
   }
 
-  function logout() {
+  function logout(reason) {
+    clearTimeout(logoutTimer);
+    tokenExpMs = null;
     state = { user: null, role: null, token: null };
     clearStorage();
     if (window.google && window.google.accounts && window.google.accounts.id) {
@@ -166,6 +230,9 @@ const Auth = (() => {
     notify();
     if (location.hash !== '#/home' && location.hash !== '') {
       location.hash = '#/home';
+    }
+    if (reason && Utils && Utils.showToast) {
+      Utils.showToast(reason, 'warn');
     }
   }
 
