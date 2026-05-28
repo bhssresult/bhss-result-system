@@ -126,6 +126,7 @@
 
         <!-- Step 1: identity details -->
         <form id="lookup-form" class="space-y-3">
+          <p class="text-xs font-semibold uppercase tracking-wide text-brand-600">Step 1 of 3 — Your details</p>
           <div class="grid sm:grid-cols-2 gap-3">
             <div>
               <label for="lookup-rollno" class="block text-sm font-semibold text-slate-700 mb-1">Roll Number</label>
@@ -156,12 +157,32 @@
           </div>
           <button type="submit"
             class="w-full sm:w-auto bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3 rounded-lg transition">
-            Send code
+            Continue
           </button>
         </form>
 
-        <!-- Step 2: OTP confirmation -->
+        <!-- Step 2: confirm registered email -->
+        <form id="email-form" class="hidden space-y-3">
+          <p class="text-xs font-semibold uppercase tracking-wide text-brand-600">Step 2 of 3 — Confirm email</p>
+          <p class="text-sm text-slate-600">Enter the email address registered for this student. The one-time code will be sent there.</p>
+          <p class="text-sm text-slate-500">Registered email: <span id="email-hint" class="font-semibold text-slate-700"></span></p>
+          <div>
+            <label for="lookup-email" class="block text-sm font-semibold text-slate-700 mb-1">Email address</label>
+            <input type="email" id="lookup-email" autocomplete="email" placeholder="you@example.com" required
+              class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+          <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
+            <button type="submit"
+              class="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3 rounded-lg transition">
+              Send code
+            </button>
+            <button type="button" id="email-change" class="text-slate-500 hover:underline text-sm self-center">Change details</button>
+          </div>
+        </form>
+
+        <!-- Step 3: OTP confirmation -->
         <form id="otp-form" class="hidden space-y-3">
+          <p class="text-xs font-semibold uppercase tracking-wide text-brand-600">Step 3 of 3 — Enter code</p>
           <p class="text-sm text-slate-600">We emailed a 6-digit code to <span id="otp-email" class="font-semibold"></span>. It expires in 5 minutes.</p>
           <p class="text-xs text-slate-500">Don't see it? Check your <span class="font-semibold">Spam/Junk</span> folder and mark it "Not spam" so future codes reach your inbox.</p>
           <div class="flex flex-col sm:flex-row gap-3">

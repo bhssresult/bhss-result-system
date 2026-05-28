@@ -40,6 +40,7 @@ function doPost(e) {
     var body = JSON.parse(e.postData.contents || '{}');
     var action = body.action || '';
     switch (action) {
+      case 'validateStudent':  return sendJson(handleValidateStudent(body));
       case 'requestResultOtp': return sendJson(handleRequestResultOtp(body));
       case 'verifyResultOtp':  return sendJson(handleVerifyResultOtp(body));
       case 'verifyUser':       return sendJson(handleVerifyUser(body));
@@ -194,6 +195,21 @@ function findStudentByRoll(rollNo) {
   return null;
 }
 
+// Verify that the supplied roll + class + section (+ stream for HSS) match a
+// student record. Returns { school, student } on a full match, else null.
+function matchStudentIdentity(rollNo, cls, section, stream) {
+  var found = findStudentByRoll(rollNo);
+  if (!found) return null;
+  var st = found.student;
+  if (String(st['class']).trim() !== String(cls).trim()) return null;
+  if (String(st.section || '').trim().toLowerCase() !== String(section).trim().toLowerCase()) return null;
+  if (found.school === 'hss' &&
+      String(st.stream || '').trim().toLowerCase() !== String(stream).trim().toLowerCase()) {
+    return null;
+  }
+  return found;
+}
+
 // Assemble the displayable result (student + marks + examConfig) for a roll
 // number. Strips the email so it is never sent to the client. Returns null if
 // the student is not found.
@@ -236,9 +252,32 @@ function maskEmail(email) {
   return parts[0].charAt(0) + '•••@' + parts[1];
 }
 
-// Verify the supplied details against the student record and, if they match,
-// email a one-time code. Never reveals which detail was wrong.
-function handleRequestResultOtp(body) {
+function bullets(n) {
+  var s = '';
+  for (var i = 0; i < n; i++) s += '•';
+  return s;
+}
+
+// Hint shown in step 2: reveal the first character and the two characters
+// immediately before the "@"; mask only the middle of the local part. The
+// domain (from "@" to the end) is shown. e.g. ramkumar@gmail.com ->
+// "r•••••ar@gmail.com".
+function maskEmailHint(email) {
+  var s = String(email || '');
+  var at = s.indexOf('@');
+  if (at < 1) return s;
+  var local = s.substring(0, at);
+  var domain = s.substring(at);
+  var masked = local.length <= 3
+    ? local
+    : local.charAt(0) + bullets(local.length - 3) + local.substring(local.length - 2);
+  return masked + domain;
+}
+
+// Step 1: verify roll + class + section (+ stream) match a record. Does NOT
+// send any email — returns a masked hint of the registered address so the
+// student can confirm which email to enter in step 2. Generic error on miss.
+function handleValidateStudent(body) {
   var GENERIC = 'We could not verify those details. Please check and try again.';
   var rollNo  = String(body.rollNo || '').trim();
   var cls     = String(body['class'] || '').trim();
@@ -246,22 +285,38 @@ function handleRequestResultOtp(body) {
   var stream  = String(body.stream || '').trim();
   if (!rollNo || !cls || !section) return { success: false, error: GENERIC };
 
-  var found = findStudentByRoll(rollNo);
+  var found = matchStudentIdentity(rollNo, cls, section, stream);
+  if (!found) return { success: false, error: GENERIC };
+
+  var email = String(found.student.email || '').trim();
+  if (!email) {
+    return { success: false, error: 'No email is on file for this student. Please contact the school office.' };
+  }
+  return { success: true, data: { emailHint: maskEmailHint(email) } };
+}
+
+// Step 2: re-verify the details AND that the entered email matches the one on
+// file, then email a one-time code. Requiring the full email before any send
+// stops anyone from draining the daily email quota by spamming requests.
+function handleRequestResultOtp(body) {
+  var GENERIC = 'We could not verify those details. Please check and try again.';
+  var rollNo  = String(body.rollNo || '').trim();
+  var cls     = String(body['class'] || '').trim();
+  var section = String(body.section || '').trim();
+  var stream  = String(body.stream || '').trim();
+  var entered = String(body.email || '').trim();
+  if (!rollNo || !cls || !section || !entered) return { success: false, error: GENERIC };
+
+  var found = matchStudentIdentity(rollNo, cls, section, stream);
   if (!found) return { success: false, error: GENERIC };
   var st = found.student;
-
-  if (String(st['class']).trim() !== cls) return { success: false, error: GENERIC };
-  if (String(st.section || '').trim().toLowerCase() !== section.toLowerCase()) {
-    return { success: false, error: GENERIC };
-  }
-  if (found.school === 'hss' &&
-      String(st.stream || '').trim().toLowerCase() !== stream.toLowerCase()) {
-    return { success: false, error: GENERIC };
-  }
 
   var email = String(st.email || '').trim();
   if (!email) {
     return { success: false, error: 'No email is on file for this student. Please contact the school office.' };
+  }
+  if (email.toLowerCase() !== entered.toLowerCase()) {
+    return { success: false, error: 'That email does not match the one on file for this student.' };
   }
 
   var cache = CacheService.getScriptCache();

@@ -17,6 +17,7 @@ const Pages = (() => {
   // ============================================================
   async function renderHome() {
     const form = document.getElementById('lookup-form');
+    const emailForm = document.getElementById('email-form');
     const otpForm = document.getElementById('otp-form');
     const statusEl = document.getElementById('lookup-status');
     const resultEl = document.getElementById('lookup-result');
@@ -24,8 +25,10 @@ const Pages = (() => {
     const sectionSel = document.getElementById('lookup-section');
     const streamSel = document.getElementById('lookup-stream');
     const streamWrap = document.getElementById('lookup-stream-wrap');
+    const emailInput = document.getElementById('lookup-email');
 
-    let pendingRoll = '';
+    // Identity confirmed in step 1; reused by steps 2 and 3.
+    let pending = { rollNo: '', cls: '', section: '', stream: '', email: '' };
 
     function setStatus(msg, type) {
       statusEl.textContent = msg || '';
@@ -35,6 +38,12 @@ const Pages = (() => {
 
     function isHssClass() {
       return classSel.value === '11' || classSel.value === '12';
+    }
+
+    function showStep(step) {
+      form.classList.toggle('hidden', step !== 1);
+      emailForm.classList.toggle('hidden', step !== 2);
+      otpForm.classList.toggle('hidden', step !== 3);
     }
 
     // Populate the dropdowns once.
@@ -58,8 +67,9 @@ const Pages = (() => {
       if (!hss) streamSel.value = '';
     };
 
-    // Shared: request a one-time code for the entered details.
-    async function requestOtp() {
+    // Step 1: validate the details (no email sent), reveal the email hint.
+    form.onsubmit = async (e) => {
+      e.preventDefault();
       const rollNo = document.getElementById('lookup-rollno').value.trim();
       const cls = classSel.value;
       const section = sectionSel.value;
@@ -71,25 +81,46 @@ const Pages = (() => {
       Utils.showLoading(true);
       setStatus('');
       try {
-        const data = await Api.requestResultOtp({ rollNo, class: cls, section, stream });
-        pendingRoll = rollNo;
-        document.getElementById('otp-email').textContent = data.maskedEmail || 'your email';
-        form.classList.add('hidden');
-        otpForm.classList.remove('hidden');
-        const codeInput = document.getElementById('otp-code');
-        codeInput.value = '';
-        codeInput.focus();
+        const data = await Api.validateStudent({ rollNo, class: cls, section, stream });
+        pending = { rollNo, cls, section, stream, email: '' };
+        document.getElementById('email-hint').textContent = data.emailHint || '';
+        showStep(2);
+        emailInput.value = '';
+        emailInput.focus();
       } catch (err) {
         setStatus(err.message || 'We could not verify those details.', 'error');
       } finally {
         Utils.showLoading(false);
       }
+    };
+
+    // Step 2: send the one-time code (only if the entered email matches).
+    async function sendCode() {
+      const email = emailInput.value.trim();
+      if (!email) { setStatus('Please enter your email address.', 'error'); return; }
+      Utils.showLoading(true);
+      setStatus('');
+      try {
+        await Api.requestResultOtp({
+          rollNo: pending.rollNo, class: pending.cls,
+          section: pending.section, stream: pending.stream, email: email
+        });
+        pending.email = email;
+        document.getElementById('otp-email').textContent = email;
+        showStep(3);
+        const codeInput = document.getElementById('otp-code');
+        codeInput.value = '';
+        codeInput.focus();
+      } catch (err) {
+        setStatus(err.message || 'We could not send the code.', 'error');
+      } finally {
+        Utils.showLoading(false);
+      }
     }
 
-    // Step 1 submit.
-    form.onsubmit = (e) => { e.preventDefault(); requestOtp(); };
+    emailForm.onsubmit = (e) => { e.preventDefault(); sendCode(); };
 
-    // Step 2 submit: verify the code and reveal the result.
+    // Step 3 submit: verify the code and reveal the result.
     otpForm.onsubmit = async (e) => {
       e.preventDefault();
       const otp = document.getElementById('otp-code').value.trim();
@@ -98,7 +129,7 @@ const Pages = (() => {
       resultEl.classList.add('hidden');
       resultEl.innerHTML = '';
       try {
-        const data = await Api.verifyResultOtp(pendingRoll, otp);
+        const data = await Api.verifyResultOtp(pending.rollNo, otp);
         if (data.examConfig) {
           if (data.examConfig.school_name) document.getElementById('home-school-name').textContent = data.examConfig.school_name;
           if (data.examConfig.exam_name) document.getElementById('home-exam-name').textContent = data.examConfig.exam_name;
@@ -115,13 +146,17 @@ const Pages = (() => {
       }
     };
 
-    document.getElementById('otp-resend').onclick = () => requestOtp();
-    document.getElementById('otp-change').onclick = () => {
-      otpForm.classList.add('hidden');
-      form.classList.remove('hidden');
+    function backToStart() {
+      showStep(1);
       resultEl.classList.add('hidden');
       setStatus('');
-    };
+    }
+
+    document.getElementById('email-change').onclick = backToStart;
+    document.getElementById('otp-resend').onclick = () => sendCode();
+    document.getElementById('otp-change').onclick = backToStart;
+
+    showStep(1);
   }
 
   // ============================================================

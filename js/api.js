@@ -47,6 +47,7 @@ const Api = (() => {
 
   // ---- Public (student result, OTP-gated) ----
   const getLookupOptions = () => get('getLookupOptions', {});
+  const validateStudent = (payload) => post('validateStudent', payload);
   const requestResultOtp = (payload) => post('requestResultOtp', payload);
   const verifyResultOtp = (rollNo, otp) => post('verifyResultOtp', { rollNo, otp });
 
@@ -73,6 +74,7 @@ const Api = (() => {
 
   return {
     getLookupOptions,
+    validateStudent,
     requestResultOtp,
     verifyResultOtp,
     verifyUser,

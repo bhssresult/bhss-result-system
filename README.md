@@ -19,7 +19,7 @@ A school result management dashboard that runs on **GitHub Pages** and stores it
 
 ## Features
 
-- **Public student result lookup** — a student enters roll number + class + section (+ stream for 11/12); the details are checked against their record and a one-time code is emailed to them. The result is shown only after the code is confirmed. No account needed.
+- **Public student result lookup (3 steps)** — (1) a student enters roll number + class + section (+ stream for 11/12); the details are checked against their record. (2) They then type the email address registered for that student (a masked hint of it is shown to help). (3) Only when the email matches is a one-time code emailed; the result is shown after the code is confirmed. Requiring the full email before any send prevents anyone from draining the daily email quota by spamming requests. No account needed.
 - **Google OAuth login** — for teachers and admins
 - **HS Results / HSS Results** — three actions per class:
   - Marks Entry → opens your Google Form
@@ -251,7 +251,7 @@ This lets teachers and admins sign in with their Google accounts.
 ## Testing the Live Site
 
 1. Open `https://YOURUSERNAME.github.io/bhss-result-system/`
-2. **Home tab** — enter roll `901`, Class `9`, Section `A` → **Send code** → check the email you set on that student row → enter the 6-digit code → **Verify & View Result** → result card appears. (Wrong class/section is rejected with a generic message and no code is sent.)
+2. **Home tab** — enter roll `901`, Class `9`, Section `A` → **Continue** → a masked hint of the registered email appears; type that student's full email → **Send code** → check the inbox → enter the 6-digit code → **Verify & View Result** → result card appears. (Wrong class/section is rejected with a generic message; a wrong email is rejected too — in both cases **no code is sent**.)
 3. **Sign In** (top right) — use the email you added to the `Users` sheet as admin
 4. After sign-in, you should see all 4 tabs: Home, Admin, HS Results, HSS Results
 5. **Admin tab** — try adding a user, editing exam config, setting Google Form URLs
@@ -297,7 +297,7 @@ Normal while your OAuth app is in Testing mode. As long as your email is in **Te
 - The GAS Web App URL is reachable by anyone, but every protected endpoint requires a valid Google ID token + an email present in the `Users` sheet.
 - Tokens are stored in `sessionStorage`, which is cleared when the browser tab closes.
 - All values from the sheet are escaped before rendering (no XSS via student names).
-- **Result access is OTP-gated.** A result is only returned after a one-time code (emailed to the student's address on file) is confirmed. The roll/class/section/stream details must match the record before a code is sent, and mismatches return a generic message (no roll-existence or field-level leak). Codes expire in 5 minutes, allow 5 verify attempts, and are rate-limited per roll (60s between sends, max 3 per 15 min) via `CacheService`.
+- **Result access is OTP-gated (3 steps).** A result is only returned after a one-time code is confirmed. First the roll/class/section/stream details must match the record (mismatch → generic message, no leak, no code sent). Then the student must type the **full registered email** — no code is sent unless it matches the address on file. This email-match gate is the main protection against quota-draining spam, since an attacker can't trigger emails just by guessing roll/class/section. Codes expire in 5 minutes, allow 5 verify attempts, and sends are rate-limited per roll (60s between sends, max 3 per 15 min) via `CacheService`.
 - **Email sending:** the script sends codes with `MailApp` as the deploying account, so when you authorize the deployment you'll grant a "send email as you" permission. Daily send limits apply — about **100 emails/day on a consumer @gmail.com** account and **~1500/day on Google Workspace**. If a result day could exceed that, deploy under a Workspace account.
 
 ---
