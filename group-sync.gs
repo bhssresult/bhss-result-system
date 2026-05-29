@@ -31,18 +31,24 @@ const PROTECTED_EMAILS = [
 
 /**
  * One config per teacher sheet. Each `mappings` entry maps a cell range to a
- * Google Group email. The first entry of each is the master group (all teachers
- * of that school); the remaining entries link one subject group per row.
+ * Google Group email. The first entry of each is that school's master group;
+ * the remaining entries link one subject group per row.
  *
- * Ranges are fixed (not open-ended). HS data is rows 2–17; HSS data is rows
- * 3–43 (HSS row 2 is intentionally excluded). If teachers are added below the
- * last row, widen that sheet's master range and add per-row entries here.
+ * A group may be fed by more than one range (even across sheets): every range
+ * mapped to the same group email is unioned before syncing, so the group's
+ * members are the combined emails of all its source ranges. This is how the
+ * F2:G3 rows of each sheet are cross-added to BOTH master groups (see the
+ * cross-mapping entries) without the two syncs deleting each other's members.
+ *
+ * Ranges are fixed (not open-ended). If teachers are added below the last row,
+ * widen that sheet's master range and add per-row entries here.
  */
 const SHEET_CONFIGS = [
   {
     sheet: 'HS_Teachers',
     mappings: [
       { range: 'F2:G18', group: 'bhss-hs-teachers@baptisthss.in' }, // master — all HS teachers
+      { range: 'F2:G3',  group: 'bhss-hss-teachers@baptisthss.in' }, // cross — HS F2:G3 also into HSS master
       { range: 'F3:G3',   group: 'english1hs@baptisthss.in'        },
       { range: 'F4:G4',   group: 'english2hs@baptisthss.in'        },
       { range: 'F5:G5', group: 'hindi1hs@baptisthss.in'          },
@@ -65,6 +71,7 @@ const SHEET_CONFIGS = [
     sheet: 'HSS_Teachers',
     mappings: [
       { range: 'F2:G43', group: 'bhss-hss-teachers@baptisthss.in' }, // master — all HSS teachers
+      { range: 'F2:G3',  group: 'bhss-hs-teachers@baptisthss.in' }, // cross — HSS F2:G3 also into HS master
       { range: 'F3:G3',    group: 'english1@baptisthss.in'     },
       { range: 'F4:G4',    group: 'english2@baptisthss.in'     },
       { range: 'F5:G5',    group: 'english3@baptisthss.in'     },
@@ -132,35 +139,60 @@ function uninstallTriggers() {
   Logger.log('All triggers removed.');
 }
 
+// —— Group source resolution ——————————————————————————————————————————————
+
+// Build a map of groupEmail -> [{ sheetName, range }, ...] across ALL configs,
+// so a group fed by several ranges (even on different sheets) is synced from
+// the union of its sources in one authoritative pass.
+function collectGroupSources() {
+  const byGroup = {};
+  SHEET_CONFIGS.forEach(function (config) {
+    config.mappings.forEach(function (mapping) {
+      const key = mapping.group.toLowerCase();
+      if (!byGroup[key]) byGroup[key] = { group: mapping.group, sources: [] };
+      byGroup[key].sources.push({ sheetName: config.sheet, range: mapping.range });
+    });
+  });
+  return byGroup;
+}
+
 // —— Main edit handler ————————————————————————————————————————————————————
 
 function onRangeEdit(e) {
   try {
     if (!e || !e.range) return;
-    const sheet = e.range.getSheet();
-    const config = SHEET_CONFIGS.filter(function (c) { return c.sheet === sheet.getName(); })[0];
+    const editedSheet = e.range.getSheet();
+    const config = SHEET_CONFIGS.filter(function (c) { return c.sheet === editedSheet.getName(); })[0];
     if (!config) return;
 
-    // Find all of this sheet's mappings whose range overlaps the edited cell(s).
-    const affectedMappings = config.mappings.filter(function (mapping) {
-      return rangesOverlap(e.range, sheet.getRange(mapping.range));
+    // Which groups are fed by a range on this sheet that the edit touched?
+    const affectedGroups = {};
+    config.mappings.forEach(function (mapping) {
+      if (rangesOverlap(e.range, editedSheet.getRange(mapping.range))) {
+        affectedGroups[mapping.group.toLowerCase()] = true;
+      }
     });
 
-    if (affectedMappings.length === 0) return;
+    const affectedKeys = Object.keys(affectedGroups);
+    if (affectedKeys.length === 0) return;
 
-    Logger.log('Edit affects ' + affectedMappings.length + ' group mapping(s).');
+    Logger.log('Edit affects ' + affectedKeys.length + ' group(s).');
 
+    // Sync each affected group from the union of ALL its sources (so a
+    // cross-fed master isn't stripped of the other sheet's members).
+    const byGroup = collectGroupSources();
     let totalAdded = 0, totalRemoved = 0;
 
-    affectedMappings.forEach(function (mapping) {
-      const r = syncGroupMembers(sheet, mapping.range, mapping.group);
+    affectedKeys.forEach(function (key) {
+      const entry = byGroup[key];
+      const r = syncGroupMembers(entry.sources, entry.group);
       totalAdded   += r.added;
       totalRemoved += r.removed;
     });
 
     SpreadsheetApp.getActive().toast(
       '+' + totalAdded + ' added, −' + totalRemoved + ' removed across ' +
-      affectedMappings.length + ' group(s).',
+      affectedKeys.length + ' group(s).',
       '✓ Groups Synced', 6
     );
   } catch (err) {
@@ -174,8 +206,20 @@ function onRangeEdit(e) {
 
 // —— Core sync logic ——————————————————————————————————————————————————————
 
-function syncGroupMembers(sheet, rangeName, groupEmail) {
-  const sheetEmails  = getSheetEmails(sheet, rangeName);
+// Sync one group from the union of its source ranges. `sources` is a list of
+// { sheetName, range }; emails found in any of them become the group's members.
+function syncGroupMembers(sources, groupEmail) {
+  const ss = SpreadsheetApp.getActive();
+  const sheetEmails = new Set();
+  sources.forEach(function (src) {
+    const sheet = ss.getSheetByName(src.sheetName);
+    if (!sheet) {
+      Logger.log('[' + groupEmail + '] Source sheet "' + src.sheetName + '" not found — skipping.');
+      return;
+    }
+    getSheetEmails(sheet, src.range).forEach(function (em) { sheetEmails.add(em); });
+  });
+
   const groupMembers = getGroupMembers(groupEmail);
 
   Logger.log('[' + groupEmail + '] Sheet: ' + Array.from(sheetEmails).join(', '));
@@ -268,27 +312,22 @@ function rangesOverlap(r1, r2) {
 
 /**
  * Run from the Apps Script editor to sync ALL groups (both sheets) immediately,
- * without needing to edit any cell.
+ * without needing to edit any cell. Each group is synced once from the union
+ * of all its source ranges.
  */
 function manualSync() {
-  const ss = SpreadsheetApp.getActive();
+  const byGroup = collectGroupSources();
   let totalAdded = 0, totalRemoved = 0, totalGroups = 0;
 
-  SHEET_CONFIGS.forEach(function (config) {
-    const sheet = ss.getSheetByName(config.sheet);
-    if (!sheet) {
-      Logger.log('Sheet "' + config.sheet + '" not found — skipping.');
-      return;
-    }
-    config.mappings.forEach(function (mapping) {
-      const r = syncGroupMembers(sheet, mapping.range, mapping.group);
-      totalAdded   += r.added;
-      totalRemoved += r.removed;
-      totalGroups  += 1;
-    });
+  Object.keys(byGroup).forEach(function (key) {
+    const entry = byGroup[key];
+    const r = syncGroupMembers(entry.sources, entry.group);
+    totalAdded   += r.added;
+    totalRemoved += r.removed;
+    totalGroups  += 1;
   });
 
-  ss.toast(
+  SpreadsheetApp.getActive().toast(
     'Full sync complete: +' + totalAdded + ' added, −' + totalRemoved +
     ' removed across ' + totalGroups + ' groups.',
     '✓ All Groups Synced', 8

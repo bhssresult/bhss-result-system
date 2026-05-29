@@ -287,8 +287,9 @@ This is a **separate, standalone script** (`group-sync.gs` in this repo) — not
 
 - **`HS_Teachers`**: `F2:G18` → `bhss-hs-teachers@baptisthss.in` (master, all HS teachers), plus one per-subject group per row (`F3:G3` … `F18:G18`, e.g. `science1hs@…`).
 - **`HSS_Teachers`**: `F2:G43` → `bhss-hss-teachers@baptisthss.in` (master, all HSS teachers), plus one per-subject group per row (`F3:G3` … `F43:G43`, e.g. `physics1@…`).
+- **Shared top rows**: each sheet's `F2:G3` also feeds the *other* school's master group (HS `F2:G3` → HSS master, and HSS `F2:G3` → HS master), so those rows end up in both masters.
 
-Any cell in a mapped range that contains an `@` is treated as a member. Add an email → it's added to that range's group; clear it → it's removed (except protected accounts, group managers, and owners). Editing a row syncs both the row's subject group and that sheet's master group, since the edit overlaps both ranges.
+Any cell in a mapped range that contains an `@` is treated as a member. Add an email → it's added to that range's group; clear it → it's removed (except protected accounts, group managers, and owners). A group fed by several ranges (like a master that also receives the other sheet's `F2:G3`) is synced from the **union** of all its ranges at once, so the sources never delete each other's members. Editing a row syncs its subject group and master; editing rows 2–3 also syncs the other school's master.
 
 The ranges are **fixed**. If teachers are ever added below the last row of a sheet, widen that sheet's master range and add per-row entries in its `mappings`.
 
