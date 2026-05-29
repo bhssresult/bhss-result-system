@@ -4,10 +4,11 @@
  * Routes:
  *   #/home
  *   #/admin
+ *   #/hs-home
+ *   #/hss-home
  *   #/hs-marks-entry
  *   #/hs-entry-review
  *   #/hs-results-preview
- *   #/hss-results
  *   #/hss-marks-review?class=11
  *   #/hss-result-preview?class=11
  *   #/access-denied
@@ -18,12 +19,13 @@ const Router = (() => {
   const routes = {
     'home':               { section: 'page-home',                roles: null },
     'admin':              { section: 'page-admin',               roles: ['admin'] },
-    'hs-marks-entry':     { section: 'page-hs-marks-entry',      roles: ['admin', 'teacher'] },
-    'hs-entry-review':    { section: 'page-hs-entry-review',     roles: ['admin', 'teacher'] },
-    'hs-results-preview': { section: 'page-hs-results-preview',  roles: ['admin', 'teacher'] },
-    'hss-results':        { section: 'page-hss-results',         roles: ['admin', 'teacher'] },
-    'hss-marks-review':   { section: 'page-marks-review',        roles: ['admin', 'teacher'] },
-    'hss-result-preview': { section: 'page-result-preview',      roles: ['admin', 'teacher'] },
+    'hs-home':            { section: 'page-hs-home',             roles: ['admin', 'hs_teacher'] },
+    'hss-home':           { section: 'page-hss-home',            roles: ['admin', 'hss_teacher'] },
+    'hs-marks-entry':     { section: 'page-hs-marks-entry',      roles: ['admin', 'hs_teacher'] },
+    'hs-entry-review':    { section: 'page-hs-entry-review',     roles: ['admin', 'hs_teacher'] },
+    'hs-results-preview': { section: 'page-hs-results-preview',  roles: ['admin', 'hs_teacher'] },
+    'hss-marks-review':   { section: 'page-marks-review',        roles: ['admin', 'hss_teacher'] },
+    'hss-result-preview': { section: 'page-result-preview',      roles: ['admin', 'hss_teacher'] },
     'access-denied':      { section: 'page-access-denied',       roles: null },
     'not-found':          { section: 'page-not-found',           roles: null }
   };
@@ -54,13 +56,7 @@ const Router = (() => {
     const links = document.querySelectorAll('[data-nav]');
     const map = {
       'home': 'home',
-      'admin': 'admin',
-      'hs-marks-entry': 'hs-results',
-      'hs-entry-review': 'hs-results',
-      'hs-results-preview': 'hs-results',
-      'hss-results': 'hss-results',
-      'hss-marks-review': 'hss-results',
-      'hss-result-preview': 'hss-results'
+      'admin': 'admin'
     };
     const activeKey = map[path] || 'home';
     links.forEach(a => {
@@ -97,10 +93,15 @@ const Router = (() => {
   async function handleRoute() {
     const { path, params } = parseHash();
 
-    // Admins use the Admin page as their home — never show the public lookup.
-    if (path === 'home' && Auth.getRole() === 'admin') {
-      if (location.hash !== '#/admin') location.hash = '#/admin';
-      return;
+    // Logged-in roles each have their own landing page instead of the public
+    // lookup. Redirect #/home to the right one.
+    if (path === 'home') {
+      const homeFor = { admin: '#/admin', hs_teacher: '#/hs-home', hss_teacher: '#/hss-home' };
+      const dest = homeFor[Auth.getRole()];
+      if (dest) {
+        if (location.hash !== dest) location.hash = dest;
+        return;
+      }
     }
 
     const route = routes[path];
@@ -139,8 +140,8 @@ const Router = (() => {
         case 'hs-marks-entry':
           await HsMarksEntry.activate();
           break;
-        case 'hss-results':
-          await Pages.renderSchoolResults('hss');
+        case 'hss-home':
+          await Pages.renderHssHome();
           break;
         case 'hss-marks-review':
           await Pages.renderMarksReview('hss', params.class || '');

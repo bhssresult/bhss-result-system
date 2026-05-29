@@ -277,8 +277,9 @@ const Pages = (() => {
           <td class="py-2 px-3">${esc(u.name)}</td>
           <td class="py-2 px-3">
             <select data-email="${esc(u.email)}" class="user-role-select border border-slate-300 rounded px-2 py-1 text-sm">
-              <option value="admin"   ${u.role === 'admin'   ? 'selected' : ''}>admin</option>
-              <option value="teacher" ${u.role === 'teacher' ? 'selected' : ''}>teacher</option>
+              <option value="admin"       ${u.role === 'admin'       ? 'selected' : ''}>admin</option>
+              <option value="hs_teacher"  ${u.role === 'hs_teacher'  ? 'selected' : ''}>hs_teacher</option>
+              <option value="hss_teacher" ${u.role === 'hss_teacher' ? 'selected' : ''}>hss_teacher</option>
             </select>
           </td>
           <td class="py-2 px-3 text-sm text-slate-500">${esc(Utils.formatDate(u.added_date))}</td>
@@ -297,7 +298,8 @@ const Pages = (() => {
             <input id="new-user-name" type="text" required placeholder="Full Name"
                    class="border border-slate-300 rounded px-3 py-2" />
             <select id="new-user-role" class="border border-slate-300 rounded px-3 py-2">
-              <option value="teacher">teacher</option>
+              <option value="hs_teacher">hs_teacher</option>
+              <option value="hss_teacher">hss_teacher</option>
               <option value="admin">admin</option>
             </select>
             <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2 rounded">Add</button>
@@ -518,13 +520,32 @@ const Pages = (() => {
   }
 
   // ============================================================
-  // HS / HSS RESULTS PAGES
+  // HSS TEACHER HOME (class selector + 3 action buttons)
   // ============================================================
-  async function renderSchoolResults(school) {
-    const containerId = school === 'hs' ? 'hs-class-buttons' : 'hss-class-buttons';
-    const container = document.getElementById(containerId);
-    container.innerHTML = '<p class="text-slate-500 col-span-full">Loading...</p>';
+  async function renderHssHome() {
+    const classSel = document.getElementById('hss-home-class');
+    const status = document.getElementById('hss-home-status');
+    const marksBtn = document.getElementById('hss-home-marks-entry');
+    const marksSub = document.getElementById('hss-home-marks-entry-sub');
+    const reviewBtn = document.getElementById('hss-home-review');
+    const previewBtn = document.getElementById('hss-home-preview');
 
+    const enabledCls = 'block bg-white rounded-2xl shadow p-6 text-center hover:shadow-md transition';
+    const disabledCls = 'block bg-white rounded-2xl shadow p-6 text-center opacity-50 pointer-events-none transition';
+
+    function disableButtons() {
+      [marksBtn, reviewBtn, previewBtn].forEach(b => {
+        b.className = disabledCls;
+        b.setAttribute('aria-disabled', 'true');
+      });
+    }
+
+    status.textContent = '';
+    marksSub.textContent = 'Select a class first';
+    disableButtons();
+    classSel.disabled = true;
+
+    const linksMap = {};
     try {
       const [examData, linksData] = await Promise.all([
         cachedExamConfig ? Promise.resolve({ config: cachedExamConfig }) : Api.getExamConfig(Auth.getToken()),
@@ -532,41 +553,46 @@ const Pages = (() => {
       ]);
       const cfg = examData.config || {};
       cachedExamConfig = cfg;
-      const classes = Utils.csvToArray(school === 'hs' ? cfg.hs_classes : cfg.hss_classes);
-      const linksMap = {};
       (linksData.links || []).forEach(l => { linksMap[l.school + '_' + l.class] = l.form_url; });
 
+      const classes = Utils.csvToArray(cfg.hss_classes);
+      classSel.length = 1; // keep the placeholder, drop any previously added options
+      classes.forEach(c => classSel.add(new Option('Class ' + c, c)));
       if (!classes.length) {
-        container.innerHTML = `<p class="col-span-full text-slate-500">No classes configured. Set ${esc(school.toUpperCase())} classes in Admin → Exam Configuration.</p>`;
+        status.textContent = 'No HSS classes configured. Set them in Admin → Exam Configuration.';
         return;
       }
-
-      container.innerHTML = classes.map(cls => {
-        const formUrl = linksMap[school + '_' + cls] || '';
-        const marksEntryBtn = formUrl
-          ? `<a href="${esc(formUrl)}" target="_blank" rel="noopener" class="block text-center bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded shadow">📝 Marks Entry</a>`
-          : `<button disabled class="block w-full text-center bg-slate-300 text-slate-500 font-semibold py-3 rounded cursor-not-allowed" title="Configure form URL in Admin">📝 Marks Entry (no URL)</button>`;
-
-        return `
-          <div class="bg-white rounded-2xl shadow p-5">
-            <h2 class="text-xl font-bold text-brand-700 mb-4">Class ${esc(cls)}</h2>
-            <div class="space-y-3">
-              ${marksEntryBtn}
-              <a href="#/${school}-marks-review?class=${encodeURIComponent(cls)}"
-                 class="block text-center bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 rounded shadow">
-                📋 Marks Entry Review
-              </a>
-              <a href="#/${school}-result-preview?class=${encodeURIComponent(cls)}"
-                 class="block text-center bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded shadow">
-                🏆 Result Preview
-              </a>
-            </div>
-          </div>
-        `;
-      }).join('');
+      classSel.disabled = false;
     } catch (err) {
-      container.innerHTML = '<p class="col-span-full text-red-600">Failed to load: ' + esc(err.message) + '</p>';
+      status.textContent = 'Failed to load: ' + (err.message || err);
+      return;
     }
+
+    classSel.onchange = () => {
+      const cls = classSel.value;
+      if (!cls) { disableButtons(); marksSub.textContent = 'Select a class first'; return; }
+
+      reviewBtn.href = '#/hss-marks-review?class=' + encodeURIComponent(cls);
+      reviewBtn.className = enabledCls;
+      reviewBtn.removeAttribute('aria-disabled');
+
+      previewBtn.href = '#/hss-result-preview?class=' + encodeURIComponent(cls);
+      previewBtn.className = enabledCls;
+      previewBtn.removeAttribute('aria-disabled');
+
+      const formUrl = linksMap['hss_' + cls] || '';
+      if (formUrl) {
+        marksBtn.href = formUrl;
+        marksBtn.className = enabledCls;
+        marksBtn.removeAttribute('aria-disabled');
+        marksSub.textContent = 'Open the marks entry form';
+      } else {
+        marksBtn.removeAttribute('href');
+        marksBtn.className = disabledCls;
+        marksBtn.setAttribute('aria-disabled', 'true');
+        marksSub.textContent = 'No form URL set for this class';
+      }
+    };
   }
 
   // ============================================================
@@ -668,7 +694,7 @@ const Pages = (() => {
   return {
     renderHome,
     renderAdmin,
-    renderSchoolResults,
+    renderHssHome,
     renderMarksReview,
     renderResultPreview
   };

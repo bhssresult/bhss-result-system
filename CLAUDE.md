@@ -53,41 +53,22 @@ Auth state lives in `Auth` (module-level variable + `sessionStorage` key `srs_se
 
 Hash-based SPA (`#/home`, `#/admin`, etc.). All `<section id="page-*">` elements exist in the DOM at all times — the router adds/removes Tailwind's `hidden` class to show one at a time. Route access control (`roles` array in the routes map in `router.js`) re-checks `Auth.getRole()` on every navigation and on every auth state change.
 
-**Admin home:** admins never see the public `#/home` lookup page. `handleRoute` redirects `home` → `#/admin` when `Auth.getRole() === 'admin'` (so the logo, which links to `#/home`, lands an admin on the Admin page). The Home nav link is hidden for admins via a `data-hide-roles="admin"` attribute (the inverse of `data-roles`, handled in `updateNavVisibility`) — it stays visible to logged-out students and teachers.
+**Per-role home:** logged-in roles never see the public `#/home` lookup page. `handleRoute` redirects `home` to each role's landing page — `admin` → `#/admin`, `hs_teacher` → `#/hs-home`, `hss_teacher` → `#/hss-home` (so the logo, which links to `#/home`, lands each role on their own home). The Home nav link is hidden for all logged-in roles via `data-hide-roles="admin,hs_teacher,hss_teacher"` (the inverse of `data-roles`, handled in `updateNavVisibility`) — it stays visible only to logged-out visitors.
 
-### Navigation Dropdowns
+### Navbar
 
-The nav supports nested dropdowns (used by HS Results). Pattern in `index.html`:
+The navbar is **flat**: just the logo, a **Home** link (logged-out only), an **Admin** link (admin only), and the user-info/logout block. There are no HS/HSS navbar items — teachers reach their tools from the buttons on their role homepage instead (see below).
 
-```html
-<div class="relative" data-dropdown data-roles="admin,teacher" hidden>
-  <button class="nav-link dropdown-toggle" data-nav="hs-results">HS Results ▾</button>
-  <div class="dropdown-menu hidden absolute ..."> ...items... </div>
-</div>
-```
+`updateNavVisibility()` (in `router.js`) drives visibility from two attributes on `nav` elements: `data-roles` (show only to the listed roles) and `data-hide-roles` (hide from the listed roles, show to everyone else, including logged-out). It also still supports a `[data-dropdown]` wrapper that toggles via the HTML `hidden` attribute rather than the `hidden` class, and `js/app.js#initDropdowns` still wires generic open/close behavior — but **no dropdowns currently exist in the markup**, so that code is inert (kept for reuse).
 
-Two visibility mechanisms are deliberately separated:
+### Role homepages (HS / HSS teachers)
 
-| Concern | Mechanism | Why |
-|---|---|---|
-| Role-based hiding of the whole dropdown | HTML `hidden` **attribute** on the `[data-dropdown]` wrapper | Cannot use the `hidden` class — it conflicts with the dropdown menu's open/close state |
-| Dropdown menu open/close state | Tailwind `hidden` **class** on `.dropdown-menu` | Toggled by click handler in `app.js` |
+Each teacher role gets a landing page with three buttons that replace the old navbar navigation for Marks Entry / Entry Review / Result Preview. Admins reach both from "Open HS View" / "Open HSS View" buttons at the top of `#page-admin`.
 
-`updateNavVisibility()` (in `router.js`) handles both: it iterates `nav [data-roles]` and applies the right mechanism based on whether the element has `data-dropdown`.
+- **`hs_teacher`** → `#/hs-home` (`#page-hs-home`): a **static** page; the 3 buttons link straight to `#/hs-marks-entry` (the 3-step wizard), `#/hs-entry-review`, and `#/hs-results-preview` (the latter two are still placeholder pages).
+- **`hss_teacher`** → `#/hss-home` (`#page-hss-home`): a **dynamic** page rendered by `Pages.renderHssHome()`. Because HSS actions are per-class, it shows a class `<select>` first; picking a class enables the 3 buttons — Marks Entry opens that class's external form URL (`hss_<class>` in the `Links` sheet, new tab; disabled if unset), Entry Review → `#/hss-marks-review?class=X`, Result Preview → `#/hss-result-preview?class=X`.
 
-Toggle logic in `js/app.js#initDropdowns`:
-- Click toggle → open that menu, close any uninvolved menus (ancestors stay open)
-- Click an `<a>` inside a menu → close all
-- Click outside any dropdown / press Escape / `hashchange` → close all
-
-### HS vs HSS Asymmetry (current state)
-
-HS and HSS are intentionally **not symmetric** right now:
-
-- **HSS Results** is a simple nav link → class-selector page → 3 per-class buttons (Marks Entry external link, Marks Entry Review, Result Preview). Uses `Pages.renderSchoolResults('hss')`, `renderMarksReview('hss', class)`, `renderResultPreview('hss', class)`. Form URLs come from the `Links` sheet.
-- **HS Results** is a nested dropdown nav. **Marks Entry** is now an in-app page (`#/hs-marks-entry`, section `#page-hs-marks-entry`) — a 3-step wizard (Term → Teacher → Class & Section) that navigates to the matching Google Sheet in the same tab. **Entry Review** (`#/hs-entry-review`) and **Results Preview** (`#/hs-results-preview`) remain static placeholder pages.
-
-`Pages.renderSchoolResults`, `renderMarksReview`, `renderResultPreview` are kept because HSS still uses them. Do not delete them when working on HS unless HSS is migrated too.
+`renderHssHome`, `renderMarksReview`, and `renderResultPreview` are the live HSS render functions (the old `renderSchoolResults` class-grid was removed). HS Entry Review / Results Preview have no render function yet — they are static placeholders.
 
 #### HS Marks Entry module (`js/hs-marks-entry.js`)
 
@@ -146,10 +127,8 @@ Do not add `display: none` rules targeting specific `#page-*` IDs by name — th
 1. Add a `<section id="page-foo" class="page hidden">` in `index.html`
 2. Add an entry to the `routes` object in `router.js` (with `roles: null` for public, or `roles: ['admin']` etc.)
 3. *(Dynamic pages only)* Add a `case 'foo': await Pages.renderFoo(); break;` in `router.js#handleRoute`, and add `renderFoo()` to `pages.js`. Static placeholder pages skip this — the section renders as-is.
-4. Add a nav entry:
-   - Standalone link: `<a href="#/foo" data-nav="foo" data-roles="admin,teacher" class="nav-link ...">Foo</a>`
-   - Inside an existing dropdown: add an `<a href="#/foo">` inside the relevant `.dropdown-menu`
-5. *(If the new route belongs under an existing nav group)* Add to the `map` in `router.js#updateNavActive` so the parent nav item highlights when on the child route.
+4. Add a way to reach it: either a navbar link (`<a href="#/foo" data-nav="foo" data-roles="admin,hs_teacher" class="nav-link ...">Foo</a>`) or, more commonly for teacher tools, a button on the relevant role homepage (`#page-hs-home` / `#page-hss-home`).
+5. *(If you added a navbar link that should highlight on child routes)* Add to the `map` in `router.js#updateNavActive`.
 
 ### Adding a New GAS Endpoint
 
@@ -162,7 +141,7 @@ Do not add `display: none` rules targeting specific `#page-*` IDs by name — th
 
 - **No `innerHTML` with unescaped data** — always use `Utils.escapeHtml()` (aliased as `esc` in `pages.js`) when rendering sheet data into HTML strings.
 - **GAS URL stability** — the `GAS_URL` in `js/config.js` must not change after initial setup (teachers bookmark the site). Always use "new version" on the existing deployment, never create a new deployment.
-- **Role values** — the only valid roles are `admin` and `teacher` (lowercase). The `Users` sheet and all role checks use these exact strings.
+- **Role values** — the only valid roles are `admin`, `hs_teacher`, and `hss_teacher` (lowercase). The `Users` sheet and all role checks use these exact strings. (The former single `teacher` role was split; backend endpoints treat both teacher roles as the same data-access level — no per-school server isolation — while the frontend routes each to its own homepage and pages.)
 - **Roll numbers** — must be unique across both `HS_Students` and `HSS_Students` sheets. `findStudentByRoll` searches HS first, then HSS, and returns the first match.
 - **Public results are OTP-gated (3-step flow)** — there is intentionally no endpoint that returns a result from a roll number alone (the old public `lookupStudent` was removed). The homepage flow is:
   1. `validateStudent` (POST, public) — verifies roll + class + section + stream against the record. Sends **no email**; returns only a masked email hint (`maskEmailHint`: first character + the two characters before the `@`, with only the middle of the local part masked and the domain shown, e.g. `r•••••ar@gmail.com`) so the student can confirm which address to type.

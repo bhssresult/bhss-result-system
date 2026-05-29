@@ -430,7 +430,7 @@ function getExamConfigObject() {
 }
 
 function handleGetExamConfig(params) {
-  requireRole(params.token, ['teacher', 'admin']);
+  requireRole(params.token, ['hs_teacher', 'hss_teacher', 'admin']);
   return { success: true, data: { config: getExamConfigObject() } };
 }
 
@@ -479,7 +479,7 @@ function handleSaveExamConfig(body) {
 // ============================================================================
 
 function handleGetFormLinks(params) {
-  requireRole(params.token, ['teacher', 'admin']);
+  requireRole(params.token, ['hs_teacher', 'hss_teacher', 'admin']);
   var links = getSheetObjects('Links');
   return { success: true, data: { links: links } };
 }
@@ -521,7 +521,7 @@ function handleSaveFormLinks(body) {
  * "term|name|class_section". Consumed by js/hs-marks-entry.js.
  */
 function handleGetHsLinks(params) {
-  requireRole(params.token, ['teacher', 'admin']);
+  requireRole(params.token, ['hs_teacher', 'hss_teacher', 'admin']);
   var rows = getSheetObjects('HS_Links');
   var map = {};
   for (var i = 0; i < rows.length; i++) {
@@ -541,7 +541,7 @@ function handleGetHsLinks(params) {
 // ============================================================================
 
 function handleGetMarks(params) {
-  requireRole(params.token, ['teacher', 'admin']);
+  requireRole(params.token, ['hs_teacher', 'hss_teacher', 'admin']);
   var school = String(params.school || '').toLowerCase();
   var classType = String(params.classType || '');
   if (school !== 'hs' && school !== 'hss') throw new Error('Invalid school');
@@ -571,7 +571,7 @@ function handleGetMarks(params) {
 }
 
 function handleSaveMarks(body) {
-  requireRole(body.token, ['teacher', 'admin']);
+  requireRole(body.token, ['hs_teacher', 'hss_teacher', 'admin']);
   var school = String(body.school || '').toLowerCase();
   if (school !== 'hs' && school !== 'hss') throw new Error('Invalid school');
   var marksSheet = getSheet(school === 'hs' ? 'HS_Marks' : 'HSS_Marks');
@@ -627,7 +627,7 @@ function handleAddUser(body) {
   var name = String(body.name || '').trim();
   var role = String(body.role || '').toLowerCase().trim();
   if (!email || !name || !role) throw new Error('email, name, and role required');
-  if (role !== 'admin' && role !== 'teacher') throw new Error('role must be admin or teacher');
+  if (['admin', 'hs_teacher', 'hss_teacher'].indexOf(role) === -1) throw new Error('role must be admin, hs_teacher, or hss_teacher');
 
   var sheet = getSheet('Users');
   if (findRowIndex(sheet, 'email', email) > 0) {
@@ -641,7 +641,7 @@ function handleUpdateUserRole(body) {
   requireRole(body.token, ['admin']);
   var email = String(body.email || '').toLowerCase().trim();
   var role = String(body.role || '').toLowerCase().trim();
-  if (role !== 'admin' && role !== 'teacher') throw new Error('role must be admin or teacher');
+  if (['admin', 'hs_teacher', 'hss_teacher'].indexOf(role) === -1) throw new Error('role must be admin, hs_teacher, or hss_teacher');
   var sheet = getSheet('Users');
   var rowIdx = findRowIndex(sheet, 'email', email);
   if (rowIdx === -1) return { success: false, error: 'User not found' };

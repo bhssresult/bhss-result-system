@@ -20,12 +20,11 @@ A school result management dashboard that runs on **GitHub Pages** and stores it
 ## Features
 
 - **Public student result lookup (3 steps)** — (1) a student enters roll number + class + section (+ stream for 11/12); the details are checked against their record. (2) They then type the email address registered for that student (a masked hint of it is shown to help). (3) Only when the email matches is a one-time code emailed; the result is shown after the code is confirmed. Requiring the full email before any send prevents anyone from draining the daily email quota by spamming requests. No account needed.
-- **Google OAuth login** — for teachers and admins
-- **HS Results / HSS Results** — three actions per class:
-  - Marks Entry → opens your Google Form
-  - Marks Entry Review → view what was entered
-  - Result Preview → see computed results with print support
-- **Admin panel** — manage users, exam config (subjects/max/pass marks), and Google Form URLs
+- **Google OAuth login** — for teachers and admins. Two teacher roles: **`hs_teacher`** and **`hss_teacher`**.
+- **Role homepages** — after sign-in each teacher lands on their own page with three buttons:
+  - Marks Entry, Entry Review, Result Preview
+  - `hs_teacher` → the HS pages (Marks Entry is the in-app wizard). `hss_teacher` → pick a class, then the HSS actions (Marks Entry opens your Google Form). Admins reach both from buttons on the Admin page.
+- **Admin panel** — manage users (assign `hs_teacher` / `hss_teacher` / `admin`), exam config (subjects/max/pass marks), and Google Form URLs
 - **Print** — clean print layout for result cards
 
 ---
@@ -253,10 +252,10 @@ This lets teachers and admins sign in with their Google accounts.
 1. Open `https://YOURUSERNAME.github.io/bhss-result-system/`
 2. **Home tab** — enter roll `901`, Class `9`, Section `A` → **Continue** → a masked hint of the registered email appears; type that student's full email → **Send code** → check the inbox → enter the 6-digit code → **Verify & View Result** → result card appears. (Wrong class/section is rejected with a generic message; a wrong email is rejected too — in both cases **no code is sent**.)
 3. **Sign In** (top right) — use the email you added to the `Users` sheet as admin
-4. After sign-in, you should see all 4 tabs: Home, Admin, HS Results, HSS Results
-5. **Admin tab** — try adding a user, editing exam config, setting Google Form URLs
-6. **HS Results tab** — pick a class → try the three buttons
-7. **Result Preview** — click 🖨️ Print All → check the print preview looks clean
+4. After sign-in as **admin** you land on the **Admin** page. Use the **Open HS View** / **Open HSS View** buttons to reach the teacher homepages.
+5. **Admin → User Management** — add a user with role `hs_teacher`, `hss_teacher`, or `admin`; edit exam config; set Google Form URLs.
+6. **HS View** — three buttons: Marks Entry (the wizard), Entry Review, Result Preview.
+7. **HSS View** — pick a class, then try Marks Entry / Entry Review / Result Preview. In Result Preview click 🖨️ Print All → check the print preview looks clean. (A `hs_teacher` / `hss_teacher` account lands straight on its own view, with no navbar tabs.)
 
 ---
 
@@ -264,7 +263,7 @@ This lets teachers and admins sign in with their Google accounts.
 
 - **Change frontend code:** Upload changed files via the GitHub web UI (Add file → Upload). Changes go live in about a minute.
 - **Change backend code (`Code.gs`):** Paste new code in Apps Script editor → Deploy → Manage deployments → pencil icon → Version: New version → Deploy. The URL stays the same so `config.js` doesn't need updates.
-- **Add a new teacher/admin:** Sign in as admin → Admin tab → User Management → add their email. They must also be added in Google Cloud Console → OAuth consent screen → Test users (while the OAuth app is in Testing mode).
+- **Add a new teacher/admin:** Sign in as admin → Admin → User Management → add their email with a role (`hs_teacher`, `hss_teacher`, or `admin`). They must also be added in Google Cloud Console → OAuth consent screen → Test users (while the OAuth app is in Testing mode).
 
 ---
 
@@ -276,8 +275,8 @@ You forgot to edit `js/config.js`. Open it, replace both placeholder values, re-
 **Sign-in popup appears but then says "User not registered"**
 Your email isn't in the `Users` sheet. Sign in as another admin and add it, or edit the sheet directly.
 
-**"Insufficient permissions" when clicking Admin tab**
-Your role in the `Users` sheet is `teacher`, not `admin`. Change it in the sheet.
+**"Insufficient permissions" / "Access Denied" on a page**
+Your role in the `Users` sheet doesn't match the page (e.g. an `hs_teacher` opening an HSS page, or a teacher opening Admin). Valid roles are `admin`, `hs_teacher`, `hss_teacher`. Change it in the sheet if needed.
 
 **Sign-in button does not appear**
 The Client ID in `js/config.js` is wrong or the GitHub Pages URL isn't in your OAuth client's **Authorized JavaScript origins**.
