@@ -92,7 +92,7 @@ The app uses an **indigo/violet** palette (matching the HS Marks Entry portal). 
 
 ### Google Sheets Schema
 
-Eight sheets: `Users`, `HS_Students`, `HSS_Students`, `HS_Marks`, `HSS_Marks`, `ExamConfig`, `Links`, `HS_Links`.
+Sheets: `Users`, `HS_Students`, `HSS_Students`, `HS_Marks`, `HSS_Marks`, `ExamConfig`, `Links`, `HS_Links`, and the optional `HS_Teachers` (drives the auto-sync below).
 
 `HS_Students` / `HSS_Students` carry an **`email`** column — the address the result OTP is sent to (HSS also has `stream`). The `email` is stripped from `buildStudentResult` before the result is returned to the client. `ExamConfig` has a **`sections`** key (CSV, e.g. `A,B,C`) used to populate the homepage Section dropdown, and an optional **`contact_email`** key used as the Reply-To on the OTP email. The OTP email is sent with a sender display name (`school_name`) and a branded HTML body (`handleRequestResultOtp`).
 
@@ -101,6 +101,18 @@ Eight sheets: `Users`, `HS_Students`, `HSS_Students`, `HS_Marks`, `HSS_Marks`, `
 `ExamConfig` is a key-value store (columns: `key`, `value`, `updated_date`). Subject lists, max marks, and pass marks are stored as comma-separated strings and parsed with `Utils.csvToArray()` / `Utils.csvToNumbers()`.
 
 `HS_Marks` / `HSS_Marks` header rows use subject names directly as column headers. `Code.gs` reads the header row dynamically to map columns.
+
+### HS_Teachers → Users auto-sync
+
+The optional `HS_Teachers` tab (same workbook) is the **source of truth for `hs_teacher` users**. Column **A** = teacher name, column **F** = email (G/H are ignored — one user per row; data starts row 2). `syncUsersFromHsTeachers()` in `Code.gs` reconciles the `Users` sheet against column F:
+
+- email in F but not in Users → append as `hs_teacher` (name from col A, `added_date` = today)
+- existing `hs_teacher` whose name changed → update the name
+- `hs_teacher` whose email is no longer in F → delete that Users row
+
+`admin` and `hss_teacher` rows are never touched, and an email already held by a non-`hs_teacher` user is left alone (no duplicate). Because hs_teacher rows are fully managed here, **add/remove HS teachers in `HS_Teachers`, not directly in `Users`** (manual hs_teacher rows get pruned on the next sync).
+
+The sync runs from an **installable on-edit trigger** (`onHsTeachersEdit`, filtered to the `HS_Teachers` sheet). One-time setup, run each once from the Apps Script editor: `syncUsersFromHsTeachers()` (initial backfill) then `createHsTeachersSyncTrigger()` (installs the trigger; safe to re-run). There is no frontend/endpoint involvement — it is pure sheet-side automation.
 
 ### ExamConfig Read/Write — Locale Safety
 

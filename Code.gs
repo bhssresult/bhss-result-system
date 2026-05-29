@@ -662,3 +662,121 @@ function handleDeleteUser(body) {
   sheet.deleteRow(rowIdx);
   return { success: true };
 }
+
+// ============================================================================
+// HS_TEACHERS -> USERS SYNC
+// ============================================================================
+//
+// The `HS_Teachers` tab holds a teacher name in column A and their email in
+// column F (columns G/H are ignored for this sync — one user per row). This
+// keeps the Users sheet's `hs_teacher` rows mirrored to that column:
+//   - email present in F but not in Users  -> add as hs_teacher (name from col A)
+//   - email present, name changed          -> update the name in Users
+//   - hs_teacher email no longer in col F  -> remove that user from Users
+// `admin` and `hss_teacher` rows are never added, changed, or deleted; an email
+// already held by a non-hs_teacher user is left untouched (no duplicate).
+//
+// Setup (run once each from the Apps Script editor):
+//   1. syncUsersFromHsTeachers()      — does the initial backfill
+//   2. createHsTeachersSyncTrigger()  — installs the on-edit auto-sync
+
+var HS_TEACHERS_SHEET = 'HS_Teachers';
+
+function syncUsersFromHsTeachers() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var src = ss.getSheetByName(HS_TEACHERS_SHEET);
+  if (!src) return; // tab not present yet — nothing to do
+  var usersSheet = getSheet('Users');
+
+  // Desired hs_teacher users from HS_Teachers: emailLower -> { email, name }.
+  // Column A (index 0) = name, column F (index 5) = email. Data starts row 2.
+  var srcData = src.getDataRange().getValues();
+  var desired = {};
+  for (var r = 1; r < srcData.length; r++) {
+    var name = String(srcData[r][0] == null ? '' : srcData[r][0]).trim();
+    var email = String(srcData[r][5] == null ? '' : srcData[r][5]).trim();
+    if (!email) continue;
+    var key = email.toLowerCase();
+    if (!desired[key]) desired[key] = { email: email, name: name };
+  }
+
+  var uData = usersSheet.getDataRange().getValues();
+  var uHeaders = uData[0];
+  var emailCol = uHeaders.indexOf('email');
+  var nameCol = uHeaders.indexOf('name');
+  var roleCol = uHeaders.indexOf('role');
+  var dateCol = uHeaders.indexOf('added_date');
+  if (emailCol === -1 || nameCol === -1 || roleCol === -1) {
+    throw new Error('Users sheet missing email/name/role columns');
+  }
+
+  var existing = {}; // emailLower -> { row (1-based), role, name }
+  for (var u = 1; u < uData.length; u++) {
+    var em = String(uData[u][emailCol] == null ? '' : uData[u][emailCol]).trim().toLowerCase();
+    if (!em) continue;
+    existing[em] = {
+      row: u + 1,
+      role: String(uData[u][roleCol] || '').toLowerCase(),
+      name: String(uData[u][nameCol] || '')
+    };
+  }
+
+  var t = today();
+
+  // Add new emails; update names of existing hs_teacher rows.
+  Object.keys(desired).forEach(function (key) {
+    var d = desired[key];
+    var ex = existing[key];
+    if (!ex) {
+      var newRow = new Array(uHeaders.length).fill('');
+      newRow[emailCol] = d.email;
+      newRow[nameCol] = d.name;
+      newRow[roleCol] = 'hs_teacher';
+      if (dateCol !== -1) newRow[dateCol] = t;
+      usersSheet.appendRow(newRow);
+    } else if (ex.role === 'hs_teacher' && ex.name !== d.name) {
+      usersSheet.getRange(ex.row, nameCol + 1).setValue(d.name);
+    }
+    // email already held by admin/hss_teacher -> leave untouched.
+  });
+
+  // Remove hs_teacher rows whose email is no longer in column F.
+  // Delete bottom-up so row indices stay valid.
+  var toDelete = [];
+  for (var u2 = 1; u2 < uData.length; u2++) {
+    var em2 = String(uData[u2][emailCol] == null ? '' : uData[u2][emailCol]).trim().toLowerCase();
+    var role2 = String(uData[u2][roleCol] || '').toLowerCase();
+    if (role2 === 'hs_teacher' && em2 && !desired[em2]) {
+      toDelete.push(u2 + 1);
+    }
+  }
+  toDelete.sort(function (a, b) { return b - a; });
+  toDelete.forEach(function (rowIdx) { usersSheet.deleteRow(rowIdx); });
+}
+
+// Installable on-edit handler: re-sync when the HS_Teachers tab changes.
+// Wrapped in try/catch so a sync error never blocks the user's edit.
+function onHsTeachersEdit(e) {
+  try {
+    if (!e || !e.range) return;
+    if (e.range.getSheet().getName() !== HS_TEACHERS_SHEET) return;
+    syncUsersFromHsTeachers();
+  } catch (err) {
+    console.error('HS_Teachers sync failed: ' + err);
+  }
+}
+
+// Run once from the editor to install the on-edit auto-sync trigger.
+// Safe to re-run — it removes any prior copy of the trigger first.
+function createHsTeachersSyncTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'onHsTeachersEdit') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  ScriptApp.newTrigger('onHsTeachersEdit')
+    .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
+    .onEdit()
+    .create();
+}
