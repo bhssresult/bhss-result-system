@@ -118,8 +118,8 @@ The sync runs from a single **installable on-edit trigger** (`onTeachersEdit`, w
 
 A second, **independent** automation lives in `group-sync.gs` (repo root) — **not** part of the Web App `Code.gs`. It mirrors ranges of the `HS_Teachers` and `HSS_Teachers` tabs into **Google Groups** via the **AdminDirectory** advanced service, driven by a `SHEET_CONFIGS` list (one config per sheet, each with its own `mappings` of range → group email):
 
-- `HS_Teachers`: `F2:G17` → master `bhss-hs-teachers@baptisthss.in`, plus one per-subject group per row (`F2:G2` … `F17:G17`).
-- `HSS_Teachers`: `F3:G43` → master `bhss-hss-teachers@baptisthss.in`, plus one per-subject group per row (`F3:G3` … `F43:G43`). HSS data starts at **row 3** (row 2 excluded).
+- `HS_Teachers`: `F2:G18` → master `bhss-hs-teachers@baptisthss.in`, plus one per-subject group per row (`F3:G3` … `F18:G18`).
+- `HSS_Teachers`: `F2:G43` → master `bhss-hss-teachers@baptisthss.in`, plus one per-subject group per row (`F3:G3` … `F43:G43`).
 
 On edit, `onRangeEdit` picks the config matching the edited sheet, then syncs every mapping whose range overlaps the edit (via `rangesOverlap`), so editing a teacher row updates both its subject group and that sheet's master. Ranges are **fixed A1 strings**; extend a sheet's `mappings` (and widen its master range) if teachers are added past the last row. Any `@`-bearing cell in a mapped range counts as a member; managers/owners and `PROTECTED_EMAILS` are never auto-removed. A single on-edit trigger covers both sheets (same workbook). Pasted into the workbook's Apps Script (own file or own project), it requires a **Workspace admin** + the **Admin SDK API** enabled, and is set up by running `manualSync()` (both sheets) then `installTrigger()`. It shares no code with `Code.gs` and needs no Web App redeploy — both simply read the teacher tabs and write to different destinations (`Users` sheet vs. the Groups).
 

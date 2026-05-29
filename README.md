@@ -285,8 +285,8 @@ Users of other roles are never affected. Because teachers are managed from these
 
 This is a **separate, standalone script** (`group-sync.gs` in this repo) — not part of the Web App `Code.gs`. It keeps **Google Group** memberships in sync with the emails in the teacher sheets. The `SHEET_CONFIGS` table holds one config per sheet; each config's `mappings` map a cell range to a group:
 
-- **`HS_Teachers`**: `F2:G17` → `bhss-hs-teachers@baptisthss.in` (master, all HS teachers), plus one per-subject group per row (`F2:G2` … `F17:G17`, e.g. `science1hs@…`).
-- **`HSS_Teachers`**: `F3:G43` → `bhss-hss-teachers@baptisthss.in` (master, all HSS teachers), plus one per-subject group per row (`F3:G3` … `F43:G43`, e.g. `physics1@…`). HSS data starts at **row 3** (row 2 is excluded).
+- **`HS_Teachers`**: `F2:G18` → `bhss-hs-teachers@baptisthss.in` (master, all HS teachers), plus one per-subject group per row (`F3:G3` … `F18:G18`, e.g. `science1hs@…`).
+- **`HSS_Teachers`**: `F2:G43` → `bhss-hss-teachers@baptisthss.in` (master, all HSS teachers), plus one per-subject group per row (`F3:G3` … `F43:G43`, e.g. `physics1@…`).
 
 Any cell in a mapped range that contains an `@` is treated as a member. Add an email → it's added to that range's group; clear it → it's removed (except protected accounts, group managers, and owners). Editing a row syncs both the row's subject group and that sheet's master group, since the edit overlaps both ranges.
 
