@@ -92,7 +92,7 @@ The app uses an **indigo/violet** palette (matching the HS Marks Entry portal). 
 
 ### Google Sheets Schema
 
-Sheets: `Users`, `HS_Students`, `HSS_Students`, `HS_Marks`, `HSS_Marks`, `ExamConfig`, `Links`, `HS_Links`, and the optional `HS_Teachers` (drives the auto-sync below).
+Sheets: `Users`, `HS_Students`, `HSS_Students`, `HS_Marks`, `HSS_Marks`, `ExamConfig`, `Links`, `HS_Links`, and the optional `HS_Teachers` / `HSS_Teachers` (drive the auto-sync below).
 
 `HS_Students` / `HSS_Students` carry an **`email`** column — the address the result OTP is sent to (HSS also has `stream`). The `email` is stripped from `buildStudentResult` before the result is returned to the client. `ExamConfig` has a **`sections`** key (CSV, e.g. `A,B,C`) used to populate the homepage Section dropdown, and an optional **`contact_email`** key used as the Reply-To on the OTP email. The OTP email is sent with a sender display name (`school_name`) and a branded HTML body (`handleRequestResultOtp`).
 
@@ -102,17 +102,17 @@ Sheets: `Users`, `HS_Students`, `HSS_Students`, `HS_Marks`, `HSS_Marks`, `ExamCo
 
 `HS_Marks` / `HSS_Marks` header rows use subject names directly as column headers. `Code.gs` reads the header row dynamically to map columns.
 
-### HS_Teachers → Users auto-sync
+### Teacher sheets → Users auto-sync
 
-The optional `HS_Teachers` tab (same workbook) is the **source of truth for `hs_teacher` users**. Column **A** = teacher name, column **F** = email (G/H are ignored — one user per row; data starts row 2). `syncUsersFromHsTeachers()` in `Code.gs` reconciles the `Users` sheet against column F:
+Two optional tabs (same workbook) are the **source of truth for teacher users**: `HS_Teachers` → role `hs_teacher`, and `HSS_Teachers` → role `hss_teacher`. In each, column **A** = teacher name, column **F** = email (G/H are ignored — one user per row; data starts row 2). `syncRoleFromTeacherSheet(sheetName, role)` in `Code.gs` reconciles the `Users` rows of that role against the sheet's column F:
 
-- email in F but not in Users → append as `hs_teacher` (name from col A, `added_date` = today)
-- existing `hs_teacher` whose name changed → update the name
-- `hs_teacher` whose email is no longer in F → delete that Users row
+- email in F but not in Users → append with that role (name from col A, `added_date` = today)
+- existing row of that role whose name changed → update the name
+- that role's email no longer in F → delete that Users row
 
-`admin` and `hss_teacher` rows are never touched, and an email already held by a non-`hs_teacher` user is left alone (no duplicate). Because hs_teacher rows are fully managed here, **add/remove HS teachers in `HS_Teachers`, not directly in `Users`** (manual hs_teacher rows get pruned on the next sync).
+Rows of other roles are never touched, and an email already held by a user of a different role is left alone (no duplicate). Because each role's rows are fully managed here, **add/remove teachers in `HS_Teachers` / `HSS_Teachers`, not directly in `Users`** (manual rows of that role get pruned on the next sync).
 
-The sync runs from an **installable on-edit trigger** (`onHsTeachersEdit`, filtered to the `HS_Teachers` sheet). One-time setup, run each once from the Apps Script editor: `syncUsersFromHsTeachers()` (initial backfill) then `createHsTeachersSyncTrigger()` (installs the trigger; safe to re-run). There is no frontend/endpoint involvement — it is pure sheet-side automation.
+The sync runs from a single **installable on-edit trigger** (`onTeachersEdit`, which re-syncs whichever of the two tabs was edited — see `TEACHER_SOURCES`). One-time setup, run each once from the Apps Script editor: `syncAllTeachers()` (initial backfill of both) then `createTeachersSyncTrigger()` (installs the trigger; safe to re-run, and it also clears the older `onHsTeachersEdit` trigger). There is no frontend/endpoint involvement — it is pure sheet-side automation.
 
 ### ExamConfig Read/Write — Locale Safety
 

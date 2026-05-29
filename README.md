@@ -265,19 +265,19 @@ This lets teachers and admins sign in with their Google accounts.
 - **Change backend code (`Code.gs`):** Paste new code in Apps Script editor → Deploy → Manage deployments → pencil icon → Version: New version → Deploy. The URL stays the same so `config.js` doesn't need updates.
 - **Add a new teacher/admin:** Sign in as admin → Admin → User Management → add their email with a role (`hs_teacher`, `hss_teacher`, or `admin`). They must also be added in Google Cloud Console → OAuth consent screen → Test users (while the OAuth app is in Testing mode).
 
-### Auto-syncing HS teachers from the `HS_Teachers` tab (optional)
+### Auto-syncing teachers from the `HS_Teachers` / `HSS_Teachers` tabs (optional)
 
-If you keep an `HS_Teachers` tab (same workbook) with **teacher name in column A** and **email in column F** (data from row 2; columns G/H are ignored), the system can keep the `Users` sheet's HS teachers in sync automatically:
+If you keep an `HS_Teachers` tab and/or an `HSS_Teachers` tab (same workbook) with **teacher name in column A** and **email in column F** (data from row 2; columns G/H are ignored), the system can keep the `Users` sheet's teachers in sync automatically. `HS_Teachers` feeds `hs_teacher` users and `HSS_Teachers` feeds `hss_teacher` users:
 
-- Add an email in column F → that person is added to `Users` as `hs_teacher` (name taken from column A).
+- Add an email in column F → that person is added to `Users` with the matching role (name taken from column A).
 - Change the name in column A → the matching user's name is updated.
-- Clear/remove an email from column F → that `hs_teacher` user is removed from `Users`.
+- Clear/remove an email from column F → that user is removed from `Users`.
 
-`admin` and `hss_teacher` users are never affected. Because HS teachers are managed from this tab, **add/remove them in `HS_Teachers`, not directly in `Users`** (manually-added `hs_teacher` rows get removed on the next sync).
+Users of other roles are never affected. Because teachers are managed from these tabs, **add/remove them in `HS_Teachers` / `HSS_Teachers`, not directly in `Users`** (manually-added rows of that role get removed on the next sync).
 
 **One-time setup** (Apps Script editor → pick the function from the dropdown → **Run**):
-1. `syncUsersFromHsTeachers` — does the first backfill (authorize when prompted).
-2. `createHsTeachersSyncTrigger` — installs the on-edit trigger so future changes sync automatically.
+1. `syncAllTeachers` — does the first backfill of both tabs (authorize when prompted).
+2. `createTeachersSyncTrigger` — installs the on-edit trigger so future changes sync automatically.
 
 (These run inside the Sheet; the deployed Web App URL is unaffected. Still redeploy `Code.gs` as a new version after pasting the updated code so the functions exist.)
 
