@@ -281,6 +281,20 @@ Users of other roles are never affected. Because teachers are managed from these
 
 (These run inside the Sheet; the deployed Web App URL is unaffected. Still redeploy `Code.gs` as a new version after pasting the updated code so the functions exist.)
 
+### Syncing the `bhss-hs-teachers@baptisthss.in` Google Group from `HS_Teachers` F2:G (optional)
+
+This is a **separate, standalone script** (`group-sync.gs` in this repo) — not part of the Web App `Code.gs`. It keeps the **`bhss-hs-teachers@baptisthss.in`** Google Group's membership in sync with the emails in the `HS_Teachers` tab's **F2:G** range (open-ended — any cell in columns F or G, row 2 down, that contains an `@`). Add an email → it's added to the group; clear it → it's removed (except protected accounts, group managers, and owners).
+
+Because it manages a Google Group, it uses the **Admin SDK** and must be set up by a **Google Workspace admin**:
+
+1. Open the Sheet with the `HS_Teachers` tab → **Extensions → Apps Script**.
+2. Paste **`group-sync.gs`** into the project (it can be its own file alongside `Code.gs`, or a separate Apps Script project — it doesn't depend on `Code.gs`).
+3. In the editor, **Services (+) → Admin SDK API** (identifier `AdminDirectory`).
+4. Run `manualSync` once (sign in as the admin and grant permissions) — fills the group from the current sheet.
+5. Run `installTrigger` once — enables automatic syncing on edits. (`uninstallTriggers` removes it.)
+
+Edit `GROUP_EMAIL` / `PROTECTED_EMAILS` at the top of `group-sync.gs` to change the destination group or the never-removed accounts.
+
 ---
 
 ## Troubleshooting

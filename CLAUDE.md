@@ -114,6 +114,10 @@ Rows of other roles are never touched, and an email already held by a user of a 
 
 The sync runs from a single **installable on-edit trigger** (`onTeachersEdit`, which re-syncs whichever of the two tabs was edited — see `TEACHER_SOURCES`). One-time setup, run each once from the Apps Script editor: `syncAllTeachers()` (initial backfill of both) then `createTeachersSyncTrigger()` (installs the trigger; safe to re-run, and it also clears the older `onHsTeachersEdit` trigger). There is no frontend/endpoint involvement — it is pure sheet-side automation.
 
+### HS_Teachers → Google Group sync (separate standalone script)
+
+A second, **independent** automation lives in `group-sync.gs` (repo root) — **not** part of the Web App `Code.gs`. It mirrors the `HS_Teachers` tab's **F2:G** range (open-ended; any `@`-bearing cell in columns F/G, row 2 down) into the **`bhss-hs-teachers@baptisthss.in`** Google Group via the **AdminDirectory** advanced service. It is pasted into the workbook's Apps Script (its own file or its own project), requires a **Workspace admin** + the **Admin SDK API** enabled, and is set up by running `manualSync()` then `installTrigger()`. It is adapted from a reference multi-group script but trimmed to one sheet, one open-ended range (built at runtime, not a fixed A1 string), and one destination group; managers/owners and `PROTECTED_EMAILS` are never auto-removed. It shares no code with `Code.gs` and needs no Web App redeploy — both simply read the same `HS_Teachers` columns and write to different destinations (`Users` sheet vs. the Group).
+
 ### ExamConfig Read/Write — Locale Safety
 
 `getExamConfigObject()` uses `sheet.getDataRange().getDisplayValues()` (not `getValues()`). This is intentional: Google Sheets in some locales auto-converts `"100,100,100,100,100"` to the number `100100100100100` (treating commas as thousands separators), destroying the CSV structure. `getDisplayValues()` always returns the string the user sees in the cell, preserving commas.
