@@ -430,7 +430,7 @@ function getExamConfigObject() {
 }
 
 function handleGetExamConfig(params) {
-  requireRole(params.token, ['hs_teacher', 'hss_teacher', 'admin']);
+  requireRole(params.token, ['hs_teacher', 'hss_teacher', 'principal', 'admin']);
   return { success: true, data: { config: getExamConfigObject() } };
 }
 
@@ -479,7 +479,7 @@ function handleSaveExamConfig(body) {
 // ============================================================================
 
 function handleGetFormLinks(params) {
-  requireRole(params.token, ['hs_teacher', 'hss_teacher', 'admin']);
+  requireRole(params.token, ['hs_teacher', 'hss_teacher', 'principal', 'admin']);
   var links = getSheetObjects('Links');
   return { success: true, data: { links: links } };
 }
@@ -521,7 +521,7 @@ function handleSaveFormLinks(body) {
  * "term|name|class_section". Consumed by js/hs-marks-entry.js.
  */
 function handleGetHsLinks(params) {
-  requireRole(params.token, ['hs_teacher', 'hss_teacher', 'admin']);
+  requireRole(params.token, ['hs_teacher', 'hss_teacher', 'principal', 'admin']);
   var rows = getSheetObjects('HS_Links');
   var map = {};
   for (var i = 0; i < rows.length; i++) {
@@ -541,7 +541,7 @@ function handleGetHsLinks(params) {
 // ============================================================================
 
 function handleGetMarks(params) {
-  requireRole(params.token, ['hs_teacher', 'hss_teacher', 'admin']);
+  requireRole(params.token, ['hs_teacher', 'hss_teacher', 'principal', 'admin']);
   var school = String(params.school || '').toLowerCase();
   var classType = String(params.classType || '');
   if (school !== 'hs' && school !== 'hss') throw new Error('Invalid school');
@@ -571,7 +571,7 @@ function handleGetMarks(params) {
 }
 
 function handleSaveMarks(body) {
-  requireRole(body.token, ['hs_teacher', 'hss_teacher', 'admin']);
+  requireRole(body.token, ['hs_teacher', 'hss_teacher', 'principal', 'admin']);
   var school = String(body.school || '').toLowerCase();
   if (school !== 'hs' && school !== 'hss') throw new Error('Invalid school');
   var marksSheet = getSheet(school === 'hs' ? 'HS_Marks' : 'HSS_Marks');
@@ -627,7 +627,7 @@ function handleAddUser(body) {
   var name = String(body.name || '').trim();
   var role = String(body.role || '').toLowerCase().trim();
   if (!email || !name || !role) throw new Error('email, name, and role required');
-  if (['admin', 'hs_teacher', 'hss_teacher'].indexOf(role) === -1) throw new Error('role must be admin, hs_teacher, or hss_teacher');
+  if (['admin', 'hs_teacher', 'hss_teacher', 'principal'].indexOf(role) === -1) throw new Error('role must be admin, hs_teacher, hss_teacher, or principal');
 
   var sheet = getSheet('Users');
   if (findRowIndex(sheet, 'email', email) > 0) {
@@ -641,7 +641,7 @@ function handleUpdateUserRole(body) {
   requireRole(body.token, ['admin']);
   var email = String(body.email || '').toLowerCase().trim();
   var role = String(body.role || '').toLowerCase().trim();
-  if (['admin', 'hs_teacher', 'hss_teacher'].indexOf(role) === -1) throw new Error('role must be admin, hs_teacher, or hss_teacher');
+  if (['admin', 'hs_teacher', 'hss_teacher', 'principal'].indexOf(role) === -1) throw new Error('role must be admin, hs_teacher, hss_teacher, or principal');
   var sheet = getSheet('Users');
   var rowIdx = findRowIndex(sheet, 'email', email);
   if (rowIdx === -1) return { success: false, error: 'User not found' };
@@ -667,17 +667,23 @@ function handleDeleteUser(body) {
 // TEACHER SHEETS -> USERS SYNC
 // ============================================================================
 //
-// Two tabs feed teacher accounts into the Users sheet:
-//   HS_Teachers  -> role hs_teacher
-//   HSS_Teachers -> role hss_teacher
-// In each, column A is the teacher name and column F the email (columns G/H are
-// ignored — one user per row, data from row 2). For each sheet, the Users rows
-// of that role are mirrored to its column F:
-//   - email present in F but not in Users  -> add with that role (name from col A)
-//   - email present, name changed          -> update the name in Users
-//   - the role's email no longer in col F  -> remove that user from Users
+// Two tabs feed accounts into the Users sheet:
+//   HS_Teachers  -> F2 = principal, F3:F = hs_teacher
+//   HSS_Teachers -> F2 = principal, F3:F = hss_teacher
+// In each, column A is the name and column F the email (columns G/H are ignored
+// — one user per row). Row 2's email is assigned the `principal` role; the
+// teacher role starts at row 3. For each (role, source rows) pair, the Users
+// rows of that role are mirrored to those emails:
+//   - email present in source but not in Users -> add with that role (name col A)
+//   - email present, name changed              -> update the name in Users
+//   - the role's email no longer in source     -> remove that user from Users
 // Rows of other roles are never added, changed, or deleted; an email already
 // held by a user of a different role is left untouched (no duplicate).
+//
+// NOTE: HS_Teachers F2 and HSS_Teachers F2 are two DIFFERENT principals; both
+// are stored with role `principal`. The principal reconcile is scoped to the
+// emails currently in the two F2 cells, so neither sheet's sync deletes the
+// other sheet's principal.
 //
 // Setup (run once each from the Apps Script editor):
 //   1. syncAllTeachers()           — initial backfill of both sheets
@@ -688,25 +694,28 @@ var TEACHER_SOURCES = [
   { sheet: 'HSS_Teachers', role: 'hss_teacher' }
 ];
 
-// Reconcile the Users rows of `role` against column F of `sheetName`.
-function syncRoleFromTeacherSheet(sheetName, role) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var src = ss.getSheetByName(sheetName);
-  if (!src) return; // tab not present yet — nothing to do
-  var usersSheet = getSheet('Users');
+var PRINCIPAL_ROLE = 'principal';
 
-  // Desired users from the source: emailLower -> { email, name }.
-  // Column A (index 0) = name, column F (index 5) = email. Data starts row 2.
-  var srcData = src.getDataRange().getValues();
-  var desired = {};
-  for (var r = 1; r < srcData.length; r++) {
+// Read { emailLower -> { email, name } } from a sheet's column A (name) /
+// column F (email), for rows [firstRow, lastRow] inclusive (1-based, where row
+// 1 is the header). Pass lastRow = null to read to the end.
+function readTeacherEmails(srcData, firstRow, lastRow) {
+  var out = {};
+  var end = (lastRow == null) ? srcData.length - 1 : lastRow - 1; // to 0-based
+  for (var r = firstRow - 1; r <= end && r < srcData.length; r++) {
+    if (r < 0) continue;
     var name = String(srcData[r][0] == null ? '' : srcData[r][0]).trim();
     var email = String(srcData[r][5] == null ? '' : srcData[r][5]).trim();
     if (!email) continue;
     var key = email.toLowerCase();
-    if (!desired[key]) desired[key] = { email: email, name: name };
+    if (!out[key]) out[key] = { email: email, name: name };
   }
+  return out;
+}
 
+// Reconcile the Users rows of `role` against a `desired` map
+// (emailLower -> { email, name }). Adds/updates/removes only rows of `role`.
+function reconcileRole(usersSheet, role, desired) {
   var uData = usersSheet.getDataRange().getValues();
   var uHeaders = uData[0];
   var emailCol = uHeaders.indexOf('email');
@@ -747,7 +756,7 @@ function syncRoleFromTeacherSheet(sheetName, role) {
     // email already held by a user of a different role -> leave untouched.
   });
 
-  // Remove rows of this role whose email is no longer in column F.
+  // Remove rows of this role whose email is no longer desired.
   // Delete bottom-up so row indices stay valid.
   var toDelete = [];
   for (var u2 = 1; u2 < uData.length; u2++) {
@@ -759,6 +768,37 @@ function syncRoleFromTeacherSheet(sheetName, role) {
   }
   toDelete.sort(function (a, b) { return b - a; });
   toDelete.forEach(function (rowIdx) { usersSheet.deleteRow(rowIdx); });
+}
+
+// Sync one teacher sheet into Users: F2 -> principal, F3:F -> `role`.
+function syncRoleFromTeacherSheet(sheetName, role) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var src = ss.getSheetByName(sheetName);
+  if (!src) return; // tab not present yet — nothing to do
+  var usersSheet = getSheet('Users');
+
+  // Column A (index 0) = name, column F (index 5) = email.
+  var srcData = src.getDataRange().getValues();
+
+  // Row 2 only -> principal. Reconcile principals against the union of BOTH
+  // sheets' F2 cells, so syncing one sheet never drops the other's principal.
+  reconcileRole(usersSheet, PRINCIPAL_ROLE, collectPrincipalEmails(ss));
+
+  // Rows 3..end -> this sheet's teacher role.
+  reconcileRole(usersSheet, role, readTeacherEmails(srcData, 3, null));
+}
+
+// The desired principal set = the F2 email of every teacher source sheet.
+function collectPrincipalEmails(ss) {
+  var desired = {};
+  TEACHER_SOURCES.forEach(function (s) {
+    var sheet = ss.getSheetByName(s.sheet);
+    if (!sheet) return;
+    var data = sheet.getDataRange().getValues();
+    var one = readTeacherEmails(data, 2, 2); // row 2 only
+    Object.keys(one).forEach(function (k) { if (!desired[k]) desired[k] = one[k]; });
+  });
+  return desired;
 }
 
 // Backfill both teacher sheets at once (initial sync, run from the editor).

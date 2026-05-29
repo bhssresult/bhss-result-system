@@ -20,11 +20,12 @@ A school result management dashboard that runs on **GitHub Pages** and stores it
 ## Features
 
 - **Public student result lookup (3 steps)** — (1) a student enters roll number + class + section (+ stream for 11/12); the details are checked against their record. (2) They then type the email address registered for that student (a masked hint of it is shown to help). (3) Only when the email matches is a one-time code emailed; the result is shown after the code is confirmed. Requiring the full email before any send prevents anyone from draining the daily email quota by spamming requests. No account needed.
-- **Google OAuth login** — for teachers and admins. Two teacher roles: **`hs_teacher`** and **`hss_teacher`**.
-- **Role homepages** — after sign-in each teacher lands on their own page with three buttons:
-  - Marks Entry, Entry Review, Result Preview
-  - `hs_teacher` → the HS pages (Marks Entry is the in-app wizard). `hss_teacher` → pick a class, then the HSS actions (Marks Entry opens your Google Form). Admins reach both from buttons on the Admin page.
-- **Admin panel** — manage users (assign `hs_teacher` / `hss_teacher` / `admin`), exam config (subjects/max/pass marks), and Google Form URLs
+- **Google OAuth login** — for teachers, principal, and admins. Roles: **`hs_teacher`**, **`hss_teacher`**, **`principal`**, **`admin`**.
+- **Role homepages** — after sign-in each role lands on its own page:
+  - `hs_teacher` → the HS pages (Marks Entry is the in-app wizard). `hss_teacher` → pick a class, then the HSS actions (Marks Entry opens your Google Form).
+  - `principal` → a Principal page with HS View / HSS View buttons (teacher-level access to both schools).
+  - Admins reach everything from buttons on the Admin page.
+- **Admin panel** — manage users (assign `hs_teacher` / `hss_teacher` / `principal` / `admin`), exam config (subjects/max/pass marks), and Google Form URLs
 - **Print** — clean print layout for result cards
 
 ---
@@ -253,7 +254,7 @@ This lets teachers and admins sign in with their Google accounts.
 2. **Home tab** — enter roll `901`, Class `9`, Section `A` → **Continue** → a masked hint of the registered email appears; type that student's full email → **Send code** → check the inbox → enter the 6-digit code → **Verify & View Result** → result card appears. (Wrong class/section is rejected with a generic message; a wrong email is rejected too — in both cases **no code is sent**.)
 3. **Sign In** (top right) — use the email you added to the `Users` sheet as admin
 4. After sign-in as **admin** you land on the **Admin** page. Use the **Open HS View** / **Open HSS View** buttons to reach the teacher homepages.
-5. **Admin → User Management** — add a user with role `hs_teacher`, `hss_teacher`, or `admin`; edit exam config; set Google Form URLs.
+5. **Admin → User Management** — add a user with role `hs_teacher`, `hss_teacher`, `principal`, or `admin`; edit exam config; set Google Form URLs.
 6. **HS View** — three buttons: Marks Entry (the wizard), Entry Review, Result Preview.
 7. **HSS View** — pick a class, then try Marks Entry / Entry Review / Result Preview. In Result Preview click 🖨️ Print All → check the print preview looks clean. (A `hs_teacher` / `hss_teacher` account lands straight on its own view, with no navbar tabs.)
 
@@ -263,17 +264,18 @@ This lets teachers and admins sign in with their Google accounts.
 
 - **Change frontend code:** Upload changed files via the GitHub web UI (Add file → Upload). Changes go live in about a minute.
 - **Change backend code (`Code.gs`):** Paste new code in Apps Script editor → Deploy → Manage deployments → pencil icon → Version: New version → Deploy. The URL stays the same so `config.js` doesn't need updates.
-- **Add a new teacher/admin:** Sign in as admin → Admin → User Management → add their email with a role (`hs_teacher`, `hss_teacher`, or `admin`). They must also be added in Google Cloud Console → OAuth consent screen → Test users (while the OAuth app is in Testing mode).
+- **Add a new teacher/admin:** Sign in as admin → Admin → User Management → add their email with a role (`hs_teacher`, `hss_teacher`, `principal`, or `admin`). They must also be added in Google Cloud Console → OAuth consent screen → Test users (while the OAuth app is in Testing mode).
 
 ### Auto-syncing teachers from the `HS_Teachers` / `HSS_Teachers` tabs (optional)
 
-If you keep an `HS_Teachers` tab and/or an `HSS_Teachers` tab (same workbook) with **teacher name in column A** and **email in column F** (data from row 2; columns G/H are ignored), the system can keep the `Users` sheet's teachers in sync automatically. `HS_Teachers` feeds `hs_teacher` users and `HSS_Teachers` feeds `hss_teacher` users:
+If you keep an `HS_Teachers` tab and/or an `HSS_Teachers` tab (same workbook) with **name in column A** and **email in column F** (columns G/H are ignored), the system can keep the `Users` sheet in sync automatically. In each sheet, **row 2 (F2) is the principal**, and **teachers start at row 3 (F3 downward)**:
 
-- Add an email in column F → that person is added to `Users` with the matching role (name taken from column A).
+- `HS_Teachers`: F2 → `principal`, F3:F → `hs_teacher`. `HSS_Teachers`: F2 → `principal`, F3:F → `hss_teacher`. (The two F2 cells are two different principals; both get role `principal`.)
+- Add an email → that person is added to `Users` with the matching role (name taken from column A).
 - Change the name in column A → the matching user's name is updated.
-- Clear/remove an email from column F → that user is removed from `Users`.
+- Clear/remove an email → that user is removed from `Users`.
 
-Users of other roles are never affected. Because teachers are managed from these tabs, **add/remove them in `HS_Teachers` / `HSS_Teachers`, not directly in `Users`** (manually-added rows of that role get removed on the next sync).
+Users of other roles are never affected. Because teachers and principals are managed from these tabs, **add/remove them in `HS_Teachers` / `HSS_Teachers`, not directly in `Users`** (manually-added rows of those roles get removed on the next sync).
 
 **One-time setup** (Apps Script editor → pick the function from the dropdown → **Run**):
 1. `syncAllTeachers` — does the first backfill of both tabs (authorize when prompted).
@@ -314,7 +316,7 @@ You forgot to edit `js/config.js`. Open it, replace both placeholder values, re-
 Your email isn't in the `Users` sheet. Sign in as another admin and add it, or edit the sheet directly.
 
 **"Insufficient permissions" / "Access Denied" on a page**
-Your role in the `Users` sheet doesn't match the page (e.g. an `hs_teacher` opening an HSS page, or a teacher opening Admin). Valid roles are `admin`, `hs_teacher`, `hss_teacher`. Change it in the sheet if needed.
+Your role in the `Users` sheet doesn't match the page (e.g. an `hs_teacher` opening an HSS page, or a teacher opening Admin). Valid roles are `admin`, `hs_teacher`, `hss_teacher`, `principal`. Change it in the sheet if needed.
 
 **Sign-in button does not appear**
 The Client ID in `js/config.js` is wrong or the GitHub Pages URL isn't in your OAuth client's **Authorized JavaScript origins**.

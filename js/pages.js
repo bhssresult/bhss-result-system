@@ -278,6 +278,7 @@ const Pages = (() => {
           <td class="py-2 px-3">
             <select data-email="${esc(u.email)}" class="user-role-select border border-slate-300 rounded px-2 py-1 text-sm">
               <option value="admin"       ${u.role === 'admin'       ? 'selected' : ''}>admin</option>
+              <option value="principal"   ${u.role === 'principal'   ? 'selected' : ''}>principal</option>
               <option value="hs_teacher"  ${u.role === 'hs_teacher'  ? 'selected' : ''}>hs_teacher</option>
               <option value="hss_teacher" ${u.role === 'hss_teacher' ? 'selected' : ''}>hss_teacher</option>
             </select>
@@ -300,6 +301,7 @@ const Pages = (() => {
             <select id="new-user-role" class="border border-slate-300 rounded px-3 py-2">
               <option value="hs_teacher">hs_teacher</option>
               <option value="hss_teacher">hss_teacher</option>
+              <option value="principal">principal</option>
               <option value="admin">admin</option>
             </select>
             <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2 rounded">Add</button>

@@ -53,7 +53,7 @@ Auth state lives in `Auth` (module-level variable + `sessionStorage` key `srs_se
 
 Hash-based SPA (`#/home`, `#/admin`, etc.). All `<section id="page-*">` elements exist in the DOM at all times — the router adds/removes Tailwind's `hidden` class to show one at a time. Route access control (`roles` array in the routes map in `router.js`) re-checks `Auth.getRole()` on every navigation and on every auth state change.
 
-**Per-role home:** logged-in roles never see the public `#/home` lookup page. `handleRoute` redirects `home` to each role's landing page — `admin` → `#/admin`, `hs_teacher` → `#/hs-home`, `hss_teacher` → `#/hss-home` (so the logo, which links to `#/home`, lands each role on their own home). The Home nav link is hidden for all logged-in roles via `data-hide-roles="admin,hs_teacher,hss_teacher"` (the inverse of `data-roles`, handled in `updateNavVisibility`) — it stays visible only to logged-out visitors.
+**Per-role home:** logged-in roles never see the public `#/home` lookup page. `handleRoute` redirects `home` to each role's landing page — `admin` → `#/admin`, `hs_teacher` → `#/hs-home`, `hss_teacher` → `#/hss-home`, `principal` → `#/principal-home` (so the logo, which links to `#/home`, lands each role on their own home). The Home nav link is hidden for all logged-in roles via `data-hide-roles="admin,hs_teacher,hss_teacher,principal"` (the inverse of `data-roles`, handled in `updateNavVisibility`) — it stays visible only to logged-out visitors.
 
 ### Navbar
 
@@ -61,12 +61,13 @@ The navbar is **flat**: just the logo, a **Home** link (logged-out only), an **A
 
 `updateNavVisibility()` (in `router.js`) drives visibility from two attributes on `nav` elements: `data-roles` (show only to the listed roles) and `data-hide-roles` (hide from the listed roles, show to everyone else, including logged-out). It also still supports a `[data-dropdown]` wrapper that toggles via the HTML `hidden` attribute rather than the `hidden` class, and `js/app.js#initDropdowns` still wires generic open/close behavior — but **no dropdowns currently exist in the markup**, so that code is inert (kept for reuse).
 
-### Role homepages (HS / HSS teachers)
+### Role homepages (HS / HSS teachers, principal)
 
 Each teacher role gets a landing page with three buttons that replace the old navbar navigation for Marks Entry / Entry Review / Result Preview. Admins reach both from "Open HS View" / "Open HSS View" buttons at the top of `#page-admin`.
 
 - **`hs_teacher`** → `#/hs-home` (`#page-hs-home`): a **static** page; the 3 buttons link straight to `#/hs-marks-entry` (the 3-step wizard), `#/hs-entry-review`, and `#/hs-results-preview` (the latter two are still placeholder pages).
 - **`hss_teacher`** → `#/hss-home` (`#page-hss-home`): a **dynamic** page rendered by `Pages.renderHssHome()`. Because HSS actions are per-class, it shows a class `<select>` first; picking a class enables the 3 buttons — Marks Entry opens that class's external form URL (`hss_<class>` in the `Links` sheet, new tab; disabled if unset), Entry Review → `#/hss-marks-review?class=X`, Result Preview → `#/hss-result-preview?class=X`.
+- **`principal`** → `#/principal-home` (`#page-principal-home`): a **static** page with two buttons — HS View → `#/hs-home`, HSS View → `#/hss-home`. The principal has teacher-level access to both schools' pages (the HS/HSS routes include `principal` in their `roles`).
 
 `renderHssHome`, `renderMarksReview`, and `renderResultPreview` are the live HSS render functions (the old `renderSchoolResults` class-grid was removed). HS Entry Review / Results Preview have no render function yet — they are static placeholders.
 
@@ -104,13 +105,18 @@ Sheets: `Users`, `HS_Students`, `HSS_Students`, `HS_Marks`, `HSS_Marks`, `ExamCo
 
 ### Teacher sheets → Users auto-sync
 
-Two optional tabs (same workbook) are the **source of truth for teacher users**: `HS_Teachers` → role `hs_teacher`, and `HSS_Teachers` → role `hss_teacher`. In each, column **A** = teacher name, column **F** = email (G/H are ignored — one user per row; data starts row 2). `syncRoleFromTeacherSheet(sheetName, role)` in `Code.gs` reconciles the `Users` rows of that role against the sheet's column F:
+Two optional tabs (same workbook) are the **source of truth for teacher + principal users**: `HS_Teachers` and `HSS_Teachers`. In each, column **A** = name, column **F** = email (G/H are ignored — one user per row). The split is by row:
 
-- email in F but not in Users → append with that role (name from col A, `added_date` = today)
+- **Row 2 (F2) → role `principal`.** HS_Teachers F2 and HSS_Teachers F2 are two *different* principals; both are stored as `principal`. The principal reconcile is scoped to the union of *both* sheets' F2 cells (`collectPrincipalEmails`), so syncing one sheet never deletes the other's principal.
+- **Rows 3+ (F3:F) → the teacher role:** `HS_Teachers` → `hs_teacher`, `HSS_Teachers` → `hss_teacher`.
+
+`syncRoleFromTeacherSheet(sheetName, role)` runs `reconcileRole(usersSheet, role, desired)` for the principal set and for that sheet's teacher rows. Each `reconcileRole` pass, scoped to one role:
+
+- email desired but not in Users → append with that role (name from col A, `added_date` = today)
 - existing row of that role whose name changed → update the name
-- that role's email no longer in F → delete that Users row
+- that role's email no longer desired → delete that Users row
 
-Rows of other roles are never touched, and an email already held by a user of a different role is left alone (no duplicate). Because each role's rows are fully managed here, **add/remove teachers in `HS_Teachers` / `HSS_Teachers`, not directly in `Users`** (manual rows of that role get pruned on the next sync).
+Rows of other roles are never touched, and an email already held by a user of a different role is left alone (no duplicate). Because these rows are fully managed here, **add/remove teachers/principals in `HS_Teachers` / `HSS_Teachers`, not directly in `Users`** (manual rows of those roles get pruned on the next sync).
 
 The sync runs from a single **installable on-edit trigger** (`onTeachersEdit`, which re-syncs whichever of the two tabs was edited — see `TEACHER_SOURCES`). One-time setup, run each once from the Apps Script editor: `syncAllTeachers()` (initial backfill of both) then `createTeachersSyncTrigger()` (installs the trigger; safe to re-run, and it also clears the older `onHsTeachersEdit` trigger). There is no frontend/endpoint involvement — it is pure sheet-side automation.
 
@@ -163,7 +169,7 @@ Do not add `display: none` rules targeting specific `#page-*` IDs by name — th
 
 - **No `innerHTML` with unescaped data** — always use `Utils.escapeHtml()` (aliased as `esc` in `pages.js`) when rendering sheet data into HTML strings.
 - **GAS URL stability** — the `GAS_URL` in `js/config.js` must not change after initial setup (teachers bookmark the site). Always use "new version" on the existing deployment, never create a new deployment.
-- **Role values** — the only valid roles are `admin`, `hs_teacher`, and `hss_teacher` (lowercase). The `Users` sheet and all role checks use these exact strings. (The former single `teacher` role was split; backend endpoints treat both teacher roles as the same data-access level — no per-school server isolation — while the frontend routes each to its own homepage and pages.)
+- **Role values** — the only valid roles are `admin`, `hs_teacher`, `hss_teacher`, and `principal` (lowercase). The `Users` sheet and all role checks use these exact strings. The former single `teacher` role was split; backend endpoints treat `hs_teacher`/`hss_teacher`/`principal` as the same data-access level (no per-school server isolation), while the frontend routes each to its own homepage. `principal` has teacher-level access to **both** schools and lands on `#/principal-home` (HS View / HSS View buttons); it is sourced from F2 of each teacher sheet (see the auto-sync above).
 - **Roll numbers** — must be unique across both `HS_Students` and `HSS_Students` sheets. `findStudentByRoll` searches HS first, then HSS, and returns the first match.
 - **Public results are OTP-gated (3-step flow)** — there is intentionally no endpoint that returns a result from a roll number alone (the old public `lookupStudent` was removed). The homepage flow is:
   1. `validateStudent` (POST, public) — verifies roll + class + section + stream against the record. Sends **no email**; returns only a masked email hint (`maskEmailHint`: first character + the two characters before the `@`, with only the middle of the local part masked and the domain shown, e.g. `r•••••ar@gmail.com`) so the student can confirm which address to type.

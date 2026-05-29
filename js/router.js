@@ -19,13 +19,14 @@ const Router = (() => {
   const routes = {
     'home':               { section: 'page-home',                roles: null },
     'admin':              { section: 'page-admin',               roles: ['admin'] },
-    'hs-home':            { section: 'page-hs-home',             roles: ['admin', 'hs_teacher'] },
-    'hss-home':           { section: 'page-hss-home',            roles: ['admin', 'hss_teacher'] },
-    'hs-marks-entry':     { section: 'page-hs-marks-entry',      roles: ['admin', 'hs_teacher'] },
-    'hs-entry-review':    { section: 'page-hs-entry-review',     roles: ['admin', 'hs_teacher'] },
-    'hs-results-preview': { section: 'page-hs-results-preview',  roles: ['admin', 'hs_teacher'] },
-    'hss-marks-review':   { section: 'page-marks-review',        roles: ['admin', 'hss_teacher'] },
-    'hss-result-preview': { section: 'page-result-preview',      roles: ['admin', 'hss_teacher'] },
+    'principal-home':     { section: 'page-principal-home',      roles: ['admin', 'principal'] },
+    'hs-home':            { section: 'page-hs-home',             roles: ['admin', 'hs_teacher', 'principal'] },
+    'hss-home':           { section: 'page-hss-home',            roles: ['admin', 'hss_teacher', 'principal'] },
+    'hs-marks-entry':     { section: 'page-hs-marks-entry',      roles: ['admin', 'hs_teacher', 'principal'] },
+    'hs-entry-review':    { section: 'page-hs-entry-review',     roles: ['admin', 'hs_teacher', 'principal'] },
+    'hs-results-preview': { section: 'page-hs-results-preview',  roles: ['admin', 'hs_teacher', 'principal'] },
+    'hss-marks-review':   { section: 'page-marks-review',        roles: ['admin', 'hss_teacher', 'principal'] },
+    'hss-result-preview': { section: 'page-result-preview',      roles: ['admin', 'hss_teacher', 'principal'] },
     'access-denied':      { section: 'page-access-denied',       roles: null },
     'not-found':          { section: 'page-not-found',           roles: null }
   };
@@ -96,7 +97,7 @@ const Router = (() => {
     // Logged-in roles each have their own landing page instead of the public
     // lookup. Redirect #/home to the right one.
     if (path === 'home') {
-      const homeFor = { admin: '#/admin', hs_teacher: '#/hs-home', hss_teacher: '#/hss-home' };
+      const homeFor = { admin: '#/admin', hs_teacher: '#/hs-home', hss_teacher: '#/hss-home', principal: '#/principal-home' };
       const dest = homeFor[Auth.getRole()];
       if (dest) {
         if (location.hash !== dest) location.hash = dest;
