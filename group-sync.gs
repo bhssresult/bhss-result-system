@@ -37,7 +37,7 @@ const PROTECTED_EMAILS = [
  * A group may be fed by more than one range (even across sheets): every range
  * mapped to the same group email is unioned before syncing, so the group's
  * members are the combined emails of all its source ranges. This is how the
- * F2:G3 rows of each sheet are cross-added to BOTH master groups (see the
+ * F2:G2 row of each sheet is cross-added to BOTH master groups (see the
  * cross-mapping entries) without the two syncs deleting each other's members.
  *
  * Ranges are fixed (not open-ended). If teachers are added below the last row,
@@ -48,7 +48,7 @@ const SHEET_CONFIGS = [
     sheet: 'HS_Teachers',
     mappings: [
       { range: 'F2:G18', group: 'bhss-hs-teachers@baptisthss.in' }, // master — all HS teachers
-      { range: 'F2:G3',  group: 'bhss-hss-teachers@baptisthss.in' }, // cross — HS F2:G3 also into HSS master
+      { range: 'F2:G2',  group: 'bhss-hss-teachers@baptisthss.in' }, // cross — HS F2:G2 also into HSS master
       { range: 'F3:G3',   group: 'english1hs@baptisthss.in'        },
       { range: 'F4:G4',   group: 'english2hs@baptisthss.in'        },
       { range: 'F5:G5', group: 'hindi1hs@baptisthss.in'          },
@@ -71,7 +71,7 @@ const SHEET_CONFIGS = [
     sheet: 'HSS_Teachers',
     mappings: [
       { range: 'F2:G43', group: 'bhss-hss-teachers@baptisthss.in' }, // master — all HSS teachers
-      { range: 'F2:G3',  group: 'bhss-hs-teachers@baptisthss.in' }, // cross — HSS F2:G3 also into HS master
+      { range: 'F2:G2',  group: 'bhss-hs-teachers@baptisthss.in' }, // cross — HSS F2:G2 also into HS master
       { range: 'F3:G3',    group: 'english1@baptisthss.in'     },
       { range: 'F4:G4',    group: 'english2@baptisthss.in'     },
       { range: 'F5:G5',    group: 'english3@baptisthss.in'     },
