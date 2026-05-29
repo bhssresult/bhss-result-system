@@ -40,22 +40,22 @@ const PROTECTED_EMAILS = [
  */
 const GROUP_MAPPINGS = [
   { range: 'F2:G17', group: 'bhss-hs-teachers@baptisthss.in' }, // master — all teachers
-  { range: 'F2:G2',   group: 'mizo1hs@baptisthss.in'           },
-  { range: 'F3:G3',   group: 'science1hs@baptisthss.in'        },
-  { range: 'F4:G4',   group: 'maths1hs@baptisthss.in'          },
-  { range: 'F5:G5',   group: 'science2hs@baptisthss.in'        },
-  { range: 'F6:G6',   group: 'english1hs@baptisthss.in'        },
-  { range: 'F7:G7',   group: 'english2hs@baptisthss.in'        },
-  { range: 'F8:G8',   group: 'maths2hs@baptisthss.in'          },
-  { range: 'F9:G9',   group: 'socialscience1hs@baptisthss.in'  },
-  { range: 'F10:G10', group: 'science3hs@baptisthss.in'        },
-  { range: 'F11:G11', group: 'workeducation1hs@baptisthss.in'  },
-  { range: 'F12:G12', group: 'hindi1hs@baptisthss.in'          },
-  { range: 'F13:G13', group: 'mizo2hs@baptisthss.in'           },
-  { range: 'F14:G14', group: 'maths3hs@baptisthss.in'          },
-  { range: 'F15:G15', group: 'socialscience2hs@baptisthss.in'  },
-  { range: 'F16:G16', group: 'hindi2hs@baptisthss.in'          },
-  { range: 'F17:G17', group: 'scripturehs@baptisthss.in'       },
+  { range: 'F2:G2',   group: 'english1hs@baptisthss.in'        },
+  { range: 'F3:G3',   group: 'english2hs@baptisthss.in'        },
+  { range: 'F4:G4', group: 'hindi1hs@baptisthss.in'          },
+  { range: 'F5:G5', group: 'hindi2hs@baptisthss.in'          },
+  { range: 'F6:G6',   group: 'maths1hs@baptisthss.in'          },
+  { range: 'F7:G7',   group: 'maths2hs@baptisthss.in'          },
+  { range: 'F8:G8', group: 'maths3hs@baptisthss.in'          },
+  { range: 'F9:G9',   group: 'mizo1hs@baptisthss.in'           },
+  { range: 'F10:G10', group: 'mizo2hs@baptisthss.in'           },
+  { range: 'F11:G11',   group: 'science1hs@baptisthss.in'        },
+  { range: 'F12:G12',   group: 'science2hs@baptisthss.in'        },
+  { range: 'F13:G13', group: 'science3hs@baptisthss.in'        },
+  { range: 'F14:G14', group: 'scripturehs@baptisthss.in'       },
+  { range: 'F15:G15',   group: 'socialscience1hs@baptisthss.in'  },
+  { range: 'F16:G16', group: 'socialscience2hs@baptisthss.in'  },
+  { range: 'F17:G17', group: 'workeducation1hs@baptisthss.in'  },
 ];
 
 // —— Trigger installer / uninstaller ——————————————————————————————————————
