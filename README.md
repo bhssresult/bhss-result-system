@@ -281,26 +281,26 @@ Users of other roles are never affected. Because teachers are managed from these
 
 (These run inside the Sheet; the deployed Web App URL is unaffected. Still redeploy `Code.gs` as a new version after pasting the updated code so the functions exist.)
 
-### Syncing Google Groups from the `HS_Teachers` sheet (optional)
+### Syncing Google Groups from the `HS_Teachers` / `HSS_Teachers` sheets (optional)
 
-This is a **separate, standalone script** (`group-sync.gs` in this repo) — not part of the Web App `Code.gs`. It keeps **Google Group** memberships in sync with the emails in the `HS_Teachers` tab. Each entry in the `GROUP_MAPPINGS` table maps a cell range to a group:
+This is a **separate, standalone script** (`group-sync.gs` in this repo) — not part of the Web App `Code.gs`. It keeps **Google Group** memberships in sync with the emails in the teacher sheets. The `SHEET_CONFIGS` table holds one config per sheet; each config's `mappings` map a cell range to a group:
 
-- **`F2:G17` → `bhss-hs-teachers@baptisthss.in`** — the master group of all HS teachers.
-- **One row each (`F2:G2` … `F17:G17`) → a per-subject group** (e.g. `science1hs@…`, `maths1hs@…`).
+- **`HS_Teachers`**: `F2:G17` → `bhss-hs-teachers@baptisthss.in` (master, all HS teachers), plus one per-subject group per row (`F2:G2` … `F17:G17`, e.g. `science1hs@…`).
+- **`HSS_Teachers`**: `F3:G43` → `bhss-hss-teachers@baptisthss.in` (master, all HSS teachers), plus one per-subject group per row (`F3:G3` … `F43:G43`, e.g. `physics1@…`). HSS data starts at **row 3** (row 2 is excluded).
 
-Any cell in a mapped range that contains an `@` is treated as a member. Add an email → it's added to that range's group; clear it → it's removed (except protected accounts, group managers, and owners). Editing a row syncs both the row's subject group and the master group, since the edit overlaps both ranges.
+Any cell in a mapped range that contains an `@` is treated as a member. Add an email → it's added to that range's group; clear it → it's removed (except protected accounts, group managers, and owners). Editing a row syncs both the row's subject group and that sheet's master group, since the edit overlaps both ranges.
 
-The ranges are **fixed** (rows 2–17 for both the master and the per-row subject groups). If teachers are ever added below row 17, widen the master `F2:G17` range and add per-row entries in `GROUP_MAPPINGS`.
+The ranges are **fixed**. If teachers are ever added below the last row of a sheet, widen that sheet's master range and add per-row entries in its `mappings`.
 
 Because it manages Google Groups, it uses the **Admin SDK** and must be set up by a **Google Workspace admin**:
 
-1. Open the Sheet with the `HS_Teachers` tab → **Extensions → Apps Script**.
+1. Open the Sheet with the `HS_Teachers` / `HSS_Teachers` tabs → **Extensions → Apps Script**.
 2. Paste **`group-sync.gs`** into the project (it can be its own file alongside `Code.gs`, or a separate Apps Script project — it doesn't depend on `Code.gs`).
 3. In the editor, **Services (+) → Admin SDK API** (identifier `AdminDirectory`).
-4. Run `manualSync` once (sign in as the admin and grant permissions) — fills all groups from the current sheet.
-5. Run `installTrigger` once — enables automatic syncing on edits. (`uninstallTriggers` removes it.)
+4. Run `manualSync` once (sign in as the admin and grant permissions) — fills all groups from both sheets.
+5. Run `installTrigger` once — enables automatic syncing on edits to either sheet. (`uninstallTriggers` removes it.)
 
-Edit `GROUP_MAPPINGS` / `PROTECTED_EMAILS` at the top of `group-sync.gs` to change the group mappings or the never-removed accounts.
+Edit `SHEET_CONFIGS` / `PROTECTED_EMAILS` at the top of `group-sync.gs` to change the sheets, group mappings, or never-removed accounts.
 
 ---
 
