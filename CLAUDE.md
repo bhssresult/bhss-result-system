@@ -105,10 +105,10 @@ Sheets: `Users`, `HS_Students`, `HSS_Students`, `HS_Marks`, `HSS_Marks`, `ExamCo
 
 ### Teacher sheets → Users auto-sync
 
-Two optional tabs (same workbook) are the **source of truth for teacher + principal users**: `HS_Teachers` and `HSS_Teachers`. In each, column **A** = name, column **F** = email (G/H are ignored — one user per row). The split is by row:
+Two optional tabs (same workbook) are the **source of truth for teacher + principal users**: `HS_Teachers` and `HSS_Teachers`. In each, column **A** = name; columns **F** and **G** each hold an email (H is ignored). Both emails on a row become separate Users rows sharing that row's name and role (so a teacher with two addresses gets two users); emails are deduped (first occurrence wins). The split is by row:
 
-- **Row 2 (F2) → role `principal`.** HS_Teachers F2 and HSS_Teachers F2 are two *different* principals; both are stored as `principal`. The principal reconcile is scoped to the union of *both* sheets' F2 cells (`collectPrincipalEmails`), so syncing one sheet never deletes the other's principal.
-- **Rows 3+ (F3:F) → the teacher role:** `HS_Teachers` → `hs_teacher`, `HSS_Teachers` → `hss_teacher`.
+- **Row 2 (F2/G2) → role `principal`.** HS_Teachers row 2 and HSS_Teachers row 2 are two *different* principals; both are stored as `principal`. The principal reconcile is scoped to the union of *both* sheets' row-2 F+G cells (`collectPrincipalEmails`), so syncing one sheet never deletes the other's principal.
+- **Rows 3+ (F3:G) → the teacher role:** `HS_Teachers` → `hs_teacher`, `HSS_Teachers` → `hss_teacher`.
 
 `syncRoleFromTeacherSheet(sheetName, role)` runs `reconcileRole(usersSheet, role, desired)` for the principal set and for that sheet's teacher rows. Each `reconcileRole` pass, scoped to one role:
 

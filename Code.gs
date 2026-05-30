@@ -670,10 +670,11 @@ function handleDeleteUser(body) {
 // Two tabs feed accounts into the Users sheet:
 //   HS_Teachers  -> F2 = principal, F3:F = hs_teacher
 //   HSS_Teachers -> F2 = principal, F3:F = hss_teacher
-// In each, column A is the name and column F the email (columns G/H are ignored
-// — one user per row). Row 2's email is assigned the `principal` role; the
-// teacher role starts at row 3. For each (role, source rows) pair, the Users
-// rows of that role are mirrored to those emails:
+// In each, column A is the name; columns F and G each hold an email (H is
+// ignored). Both emails on a row become separate users sharing that row's
+// name. Row 2's emails are assigned the `principal` role; the teacher role
+// starts at row 3. For each (role, source rows) pair, the Users rows of that
+// role are mirrored to those emails:
 //   - email present in source but not in Users -> add with that role (name col A)
 //   - email present, name changed              -> update the name in Users
 //   - the role's email no longer in source     -> remove that user from Users
@@ -696,19 +697,24 @@ var TEACHER_SOURCES = [
 
 var PRINCIPAL_ROLE = 'principal';
 
-// Read { emailLower -> { email, name } } from a sheet's column A (name) /
-// column F (email), for rows [firstRow, lastRow] inclusive (1-based, where row
-// 1 is the header). Pass lastRow = null to read to the end.
+// Read { emailLower -> { email, name } } from a sheet's column A (name) and
+// the email columns F and G, for rows [firstRow, lastRow] inclusive (1-based,
+// where row 1 is the header). Pass lastRow = null to read to the end. A row may
+// hold an email in F and/or G; each non-empty one becomes its own user, both
+// sharing that row's col-A name. Deduped by email (first occurrence wins).
 function readTeacherEmails(srcData, firstRow, lastRow) {
   var out = {};
+  var emailCols = [5, 6]; // F, G (0-based)
   var end = (lastRow == null) ? srcData.length - 1 : lastRow - 1; // to 0-based
   for (var r = firstRow - 1; r <= end && r < srcData.length; r++) {
     if (r < 0) continue;
     var name = String(srcData[r][0] == null ? '' : srcData[r][0]).trim();
-    var email = String(srcData[r][5] == null ? '' : srcData[r][5]).trim();
-    if (!email) continue;
-    var key = email.toLowerCase();
-    if (!out[key]) out[key] = { email: email, name: name };
+    for (var c = 0; c < emailCols.length; c++) {
+      var email = String(srcData[r][emailCols[c]] == null ? '' : srcData[r][emailCols[c]]).trim();
+      if (!email) continue;
+      var key = email.toLowerCase();
+      if (!out[key]) out[key] = { email: email, name: name };
+    }
   }
   return out;
 }

@@ -268,11 +268,12 @@ This lets teachers and admins sign in with their Google accounts.
 
 ### Auto-syncing teachers from the `HS_Teachers` / `HSS_Teachers` tabs (optional)
 
-If you keep an `HS_Teachers` tab and/or an `HSS_Teachers` tab (same workbook) with **name in column A** and **email in column F** (columns G/H are ignored), the system can keep the `Users` sheet in sync automatically. In each sheet, **row 2 (F2) is the principal**, and **teachers start at row 3 (F3 downward)**:
+If you keep an `HS_Teachers` tab and/or an `HSS_Teachers` tab (same workbook) with **name in column A** and **emails in columns F and G** (column H is ignored), the system can keep the `Users` sheet in sync automatically. In each sheet, **row 2 is the principal**, and **teachers start at row 3**:
 
-- `HS_Teachers`: F2 → `principal`, F3:F → `hs_teacher`. `HSS_Teachers`: F2 → `principal`, F3:F → `hss_teacher`. (The two F2 cells are two different principals; both get role `principal`.)
-- Add an email → that person is added to `Users` with the matching role (name taken from column A).
-- Change the name in column A → the matching user's name is updated.
+- `HS_Teachers`: row 2 → `principal`, rows 3+ → `hs_teacher`. `HSS_Teachers`: row 2 → `principal`, rows 3+ → `hss_teacher`. (The two row-2 entries are two different principals; both get role `principal`.)
+- **Two emails per row:** if a row has an email in F **and** G, both become separate `Users` rows with the same name (column A) and role. A person with two addresses gets two users.
+- Add an email in F or G → that person is added to `Users` with the matching role (name taken from column A).
+- Change the name in column A → the matching users' names are updated.
 - Clear/remove an email → that user is removed from `Users`.
 
 Users of other roles are never affected. Because teachers and principals are managed from these tabs, **add/remove them in `HS_Teachers` / `HSS_Teachers`, not directly in `Users`** (manually-added rows of those roles get removed on the next sync).
