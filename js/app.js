@@ -8,6 +8,7 @@
     Auth.init();
     Router.init();
     HsMarksEntry.init();
+    HsEntryReview.init();
     initDropdowns();
     initMobileNav();
   }

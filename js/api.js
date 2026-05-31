@@ -61,6 +61,7 @@ const Api = (() => {
   const getExamConfig = (token) => get('getExamConfig', { token });
   const getFormLinks = (token) => get('getFormLinks', { token });
   const getHsLinks = (token) => get('getHsLinks', { token });
+  const getHsReviewLinks = (token) => get('getHsReviewLinks', { token });
 
   // ---- Admin only ----
   const getUsers = (token) => get('getUsers', { token });
@@ -83,6 +84,7 @@ const Api = (() => {
     getExamConfig,
     getFormLinks,
     getHsLinks,
+    getHsReviewLinks,
     getUsers,
     addUser,
     updateUserRole,

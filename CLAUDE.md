@@ -42,7 +42,7 @@ Every authenticated API call sends the raw Google ID token (JWT) in the request 
 All JS files use the IIFE module pattern (`const X = (() => { ... return {...}; })();`). Globals exposed: `Utils`, `Api`, `Auth`, `Pages`, `Router`. Script load order in `index.html` is critical:
 
 ```
-config.js → utils.js → api.js → auth.js → pages.js → hs-marks-entry.js → router.js → app.js
+config.js → utils.js → api.js → auth.js → pages.js → hs-marks-entry.js → hs-entry-review.js → router.js → app.js
 ```
 
 ### State Management
@@ -65,11 +65,11 @@ The navbar is **flat**: just the logo, a **Home** link (logged-out only), an **A
 
 Each teacher role gets a landing page with three buttons that replace the old navbar navigation for Marks Entry / Entry Review / Result Preview. Admins reach both from "Open HS View" / "Open HSS View" buttons at the top of `#page-admin`.
 
-- **`hs_teacher`** → `#/hs-home` (`#page-hs-home`): a **static** page; the 3 buttons link straight to `#/hs-marks-entry` (the 3-step wizard), `#/hs-entry-review`, and `#/hs-results-preview` (the latter two are still placeholder pages).
+- **`hs_teacher`** → `#/hs-home` (`#page-hs-home`): a **static** page; the 3 buttons link straight to `#/hs-marks-entry` (the 3-step wizard) and `#/hs-entry-review` (a second 3-step wizard, see below); `#/hs-results-preview` is still a placeholder.
 - **`hss_teacher`** → `#/hss-home` (`#page-hss-home`): a **dynamic** page rendered by `Pages.renderHssHome()`. Because HSS actions are per-class, it shows a class `<select>` first; picking a class enables the 3 buttons — Marks Entry opens that class's external form URL (`hss_<class>` in the `Links` sheet, new tab; disabled if unset), Entry Review → `#/hss-marks-review?class=X`, Result Preview → `#/hss-result-preview?class=X`.
 - **`principal`** → `#/principal-home` (`#page-principal-home`): a **static** page with two buttons — HS View → `#/hs-home`, HSS View → `#/hss-home`. The principal has teacher-level access to both schools' pages (the HS/HSS routes include `principal` in their `roles`).
 
-`renderHssHome`, `renderMarksReview`, and `renderResultPreview` are the live HSS render functions (the old `renderSchoolResults` class-grid was removed). HS Entry Review / Results Preview have no render function yet — they are static placeholders.
+`renderHssHome`, `renderMarksReview`, and `renderResultPreview` are the live HSS render functions (the old `renderSchoolResults` class-grid was removed). HS Results Preview is still a static placeholder; HS Entry Review is now its own wizard module (below).
 
 #### HS Marks Entry module (`js/hs-marks-entry.js`)
 
@@ -81,9 +81,18 @@ A self-contained IIFE module (`HsMarksEntry`), originally ported from the standa
 - The card logo is `assets/logo.png` (the school crest).
 - The script tag loads after `pages.js` and before `router.js`.
 
+#### HS Entry Review module (`js/hs-entry-review.js`)
+
+A near-clone of `HsMarksEntry` (IIFE `HsEntryReview`) for the `#/hs-entry-review` page (`#page-hs-entry-review`). Same look (3-dot stepper, Term / Name / Class&Section dropdowns, same CSS). Key differences:
+
+- Destination URLs are keyed by **`"term|class_section"`** only (not name) — read from the **`HS_Review_Links`** sheet (`term | class_section | url`) via `Api.getHsReviewLinks()` → `getHsReviewLinks` GAS endpoint. 6 terms × 5 class-sections = 30 combinations vs. the 480 in Marks Entry.
+- The **Name dropdown is mandatory to proceed** (must be selected before Class & Section unlocks, same as Marks Entry) but is **excluded from `buildKey()`**, so it does not affect which review sheet opens — all teachers choosing the same term + class-section reach the same sheet.
+- Element IDs are prefixed **`hsr-`** (`hsr-dd-term`, `hsr-dd-name`, `hsr-dd-classsection`, `hsr-dot1..3`, `hsr-btn-go`, `hsr-url-preview`, `hsr-error-msg`). "Go to Review Sheet" navigates in the same tab.
+- `HsEntryReview.init()` is called once from `app.js`; `HsEntryReview.activate()` is called by `router.js` on navigation. Script tag loads after `hs-marks-entry.js`, before `router.js`. (`HS_Review_Links-seed.tsv` in the repo root holds the 25 term/class-section rows with blank `url` cells to fill in.)
+
 ### Theme
 
-The app uses an **indigo/violet** palette (matching the HS Marks Entry portal). The Tailwind `brand.*` scale is redefined in `index.html`'s `tailwind.config` to indigo shades, so all existing `brand-*` classes re-theme automatically. Fonts are **DM Sans** (body, set on `body` in `style.css`) and **DM Serif Display** (headings via the `.hs-serif` class), loaded from Google Fonts in `index.html`. The HS Marks Entry page's component styles (`.bg-mesh`, `.card-glow`, `.btn-submit`, `.step-dot`, `.step-line`, and the scoped `#page-hs-marks-entry select` arrow) live in `style.css`.
+The app uses an **indigo/violet** palette (matching the HS Marks Entry portal). The Tailwind `brand.*` scale is redefined in `index.html`'s `tailwind.config` to indigo shades, so all existing `brand-*` classes re-theme automatically. Fonts are **DM Sans** (body, set on `body` in `style.css`) and **DM Serif Display** (headings via the `.hs-serif` class), loaded from Google Fonts in `index.html`. The HS Marks Entry / Entry Review pages' shared component styles (`.bg-mesh`, `.card-glow`, `.btn-submit`, `.step-dot`, `.step-line`, and the scoped `#page-hs-marks-entry select, #page-hs-entry-review select` arrow) live in `style.css`.
 
 ### GAS API Convention
 
@@ -93,11 +102,13 @@ The app uses an **indigo/violet** palette (matching the HS Marks Entry portal). 
 
 ### Google Sheets Schema
 
-Sheets: `Users`, `HS_Students`, `HSS_Students`, `HS_Marks`, `HSS_Marks`, `ExamConfig`, `Links`, `HS_Links`, and the optional `HS_Teachers` / `HSS_Teachers` (drive the auto-sync below).
+Sheets: `Users`, `HS_Students`, `HSS_Students`, `HS_Marks`, `HSS_Marks`, `ExamConfig`, `Links`, `HS_Links`, `HS_Review_Links`, and the optional `HS_Teachers` / `HSS_Teachers` (drive the auto-sync below).
 
 `HS_Students` / `HSS_Students` carry an **`email`** column — the address the result OTP is sent to (HSS also has `stream`). The `email` is stripped from `buildStudentResult` before the result is returned to the client. `ExamConfig` has a **`sections`** key (CSV, e.g. `A,B,C`) used to populate the homepage Section dropdown, and an optional **`contact_email`** key used as the Reply-To on the OTP email. The OTP email is sent with a sender display name (`school_name`) and a branded HTML body (`handleRequestResultOtp`).
 
 `HS_Links` (columns: `term`, `name`, `class_section`, `url`) holds the HS Marks Entry destination URLs. `term`/`name`/`class_section` must match the `<option value>`s in the HS Marks Entry `<select>`s in `index.html` (e.g. `firstterm`, `madampuii`, `IX-A`). Read by `handleGetHsLinks` and exposed as a `"term|name|class_section" → url` map.
+
+`HS_Review_Links` (columns: `term`, `class_section`, `url`) holds the HS Entry Review destination URLs, keyed `"term|class_section"` (no name; 6 terms × 5 class-sections = 30 rows). Read by `handleGetHsReviewLinks`. Seed: `HS_Review_Links-seed.tsv`.
 
 `ExamConfig` is a key-value store (columns: `key`, `value`, `updated_date`). Subject lists, max marks, and pass marks are stored as comma-separated strings and parsed with `Utils.csvToArray()` / `Utils.csvToNumbers()`.
 

@@ -46,7 +46,7 @@ Total: about 30 minutes for the first time. Updates after that take less than a 
 
 1. Open <https://sheets.google.com> with your school Google account
 2. Create a blank sheet → rename it: **"BHSS Result System Database"**
-3. Create these **8 tabs** at the bottom (right-click the tab → Rename):
+3. Create these **9 tabs** at the bottom (right-click the tab → Rename):
    - `Users`
    - `HS_Students`
    - `HSS_Students`
@@ -55,6 +55,7 @@ Total: about 30 minutes for the first time. Updates after that take less than a 
    - `ExamConfig`
    - `Links`
    - `HS_Links`
+   - `HS_Review_Links`
 
 4. Add the **header row** for each tab (first row, exactly as written):
 
@@ -117,6 +118,12 @@ school | class | form_url | updated_date
 term | name | class_section | url
 ```
 The `term`, `name`, and `class_section` values must match the dropdown options on the HS Marks Entry page (e.g. `firstterm`, `madampuii`, `IX-A`). To populate this quickly, open **`HS_Links-seed.tsv`** (in the project folder), select all, copy, and paste into cell **A1** of this tab. It fills in the header plus **every** term/teacher/class combination — First Mid Term already has its real links, and the other terms have a **blank `url` cell** ready for you to fill in. When a new term's entry sheet is ready, just paste its link into that row's `url` cell (no need to add rows). A blank `url` simply means the wizard shows "not configured yet" for that combination. (You can delete `HS_Links-seed.tsv` after pasting.)
+
+**`HS_Review_Links`** (row 1) — destination URLs for the HS **Entry Review** wizard:
+```
+term | class_section | url
+```
+Like `HS_Links` but keyed by **term + class&section only** (no name — the Entry Review page still shows a Name dropdown that the teacher must select to proceed, but it doesn't affect the destination). 6 terms × 5 class-sections = 30 rows. Paste **`HS_Review_Links-seed.tsv`** into cell **A1**; it fills the header plus all 30 rows with blank `url` cells for you to fill in. A blank/missing `url` shows "not configured yet". (You can delete the seed file after pasting.)
 
 5. Add yourself as the first admin in `Users`:
 ```
@@ -255,7 +262,7 @@ This lets teachers and admins sign in with their Google accounts.
 3. **Sign In** (top right) — use the email you added to the `Users` sheet as admin
 4. After sign-in as **admin** you land on the **Admin** page. Use the **Open HS View** / **Open HSS View** buttons to reach the teacher homepages.
 5. **Admin → User Management** — add a user with role `hs_teacher`, `hss_teacher`, `principal`, or `admin`; edit exam config; set Google Form URLs.
-6. **HS View** — three buttons: Marks Entry (the wizard), Entry Review, Result Preview.
+6. **HS View** — three buttons: Marks Entry (the wizard) and Entry Review (a second wizard, keyed by term + class&section); Result Preview is still a placeholder.
 7. **HSS View** — pick a class, then try Marks Entry / Entry Review / Result Preview. In Result Preview click 🖨️ Print All → check the print preview looks clean. (A `hs_teacher` / `hss_teacher` account lands straight on its own view, with no navbar tabs.)
 
 ---

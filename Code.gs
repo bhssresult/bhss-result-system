@@ -27,6 +27,7 @@ function doGet(e) {
       case 'getExamConfig': return sendJson(handleGetExamConfig(e.parameter));
       case 'getFormLinks':  return sendJson(handleGetFormLinks(e.parameter));
       case 'getHsLinks':    return sendJson(handleGetHsLinks(e.parameter));
+      case 'getHsReviewLinks': return sendJson(handleGetHsReviewLinks(e.parameter));
       case 'ping':          return sendJson({ success: true, message: 'pong' });
       default:              return sendJson({ success: false, error: 'Unknown action: ' + action });
     }
@@ -531,6 +532,27 @@ function handleGetHsLinks(params) {
     var url = String(rows[i].url || '').trim();
     if (term && name && cs && url) {
       map[term + '|' + name + '|' + cs] = url;
+    }
+  }
+  return { success: true, data: { links: map } };
+}
+
+/**
+ * Returns the HS Entry Review destination URLs from the `HS_Review_Links`
+ * sheet (columns: term, class_section, url) as a lookup map keyed by
+ * "term|class_section". Consumed by js/hs-entry-review.js. The Entry Review
+ * wizard still shows a Name dropdown, but the name is NOT part of this key.
+ */
+function handleGetHsReviewLinks(params) {
+  requireRole(params.token, ['hs_teacher', 'hss_teacher', 'principal', 'admin']);
+  var rows = getSheetObjects('HS_Review_Links');
+  var map = {};
+  for (var i = 0; i < rows.length; i++) {
+    var term = String(rows[i].term || '').trim();
+    var cs = String(rows[i].class_section || '').trim();
+    var url = String(rows[i].url || '').trim();
+    if (term && cs && url) {
+      map[term + '|' + cs] = url;
     }
   }
   return { success: true, data: { links: map } };

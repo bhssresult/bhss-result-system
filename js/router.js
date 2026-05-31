@@ -141,6 +141,9 @@ const Router = (() => {
         case 'hs-marks-entry':
           await HsMarksEntry.activate();
           break;
+        case 'hs-entry-review':
+          await HsEntryReview.activate();
+          break;
         case 'hss-home':
           await Pages.renderHssHome();
           break;
