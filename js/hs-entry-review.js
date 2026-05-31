@@ -53,14 +53,15 @@ const HsEntryReview = (() => {
     ].join("|");
   }
 
-  // Human-readable summary of the current selections, using the visible
-  // option labels, e.g. "First Mid Term | Madam Puii | Class IX A".
+  // Human-readable summary of the destination, using the visible option
+  // labels. Name is omitted since it is not part of the mapping key,
+  // e.g. "First Mid Term | Class IX A".
   function selectionLabel() {
     function labelOf(id) {
       const sel = $id(id);
       return sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].text : "";
     }
-    return [labelOf("hsr-dd-term"), labelOf("hsr-dd-name"), labelOf("hsr-dd-classsection")].join(" | ");
+    return [labelOf("hsr-dd-term"), labelOf("hsr-dd-classsection")].join(" | ");
   }
 
   // ─── EVENT HANDLERS ───────────────────────────────────────────────────────
